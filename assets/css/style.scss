@@ -1,0 +1,39 @@
+// assets/css/custom.scss
+---
+---
+
+/* Dark theme override */
+body {
+  background-color: #1e1e1e;
+  color: #ddd;
+}
+
+/* Sidebar background */
+.side-bar {
+  background-color: #111 !important;
+}
+
+/* Sidebar text */
+.nav-list .nav-list-item a {
+  color: #ccc !important;
+}
+
+.nav-list .nav-list-item a:hover {
+  color: #fff !important;
+}
+
+/* Content area */
+.main-content {
+  background-color: #1e1e1e !important;
+  color: #ddd !important;
+}
+
+/* Headings */
+h1, h2, h3, h4, h5, h6 {
+  color: #fff !important;
+}
+
+/* Links */
+a {
+  color: #4dabf7 !important;
+}
