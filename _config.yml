@@ -17,10 +17,7 @@ nav_external_links:
   - title: Producer - 3.2 Capture audio and send data through Producer
     url: lab10_1%20stream_data_pipeline_2_producer.html#32-capture-audio-and-send-data-through-producer
   - title: Producer - Conclusion
-    url: lab10_1%20stream_data_pipeline_2_producer.html#conclusion
-  - title: Submissions next Wed 9pm (29 Oct 2025)
-    url: lab10_1%20stream_data_pipeline_2_producer.html#submissions-next-wed-9pm-29-oct-2025
-    
+    url: lab10_1%20stream_data_pipeline_2_producer.html#conclusion  
   - title: Consumer - 1. Load whisper
     url: lab10_2%20stream_data_pipeline_2_consumer.html#1-load-whisper
   - title: Consumer - 2. Consume audio stream and transcribe
@@ -33,6 +30,8 @@ nav_external_links:
     url: lab10_2%20stream_data_pipeline_2_consumer.html#31-detect-speakers
   - title: Consumer - 4. Insert data into Elasticsearch NoSQL database and visualize in Kibana.
     url: lab10_2%20stream_data_pipeline_2_consumer.html#4-insert-data-into-elasticsearch-nosql-database-and-visualize-in-kibana
+  - title: Submissions next Wed 9pm (29 Oct 2025)
+    url: lab10_1%20stream_data_pipeline_2_producer.html#submissions-next-wed-9pm-29-oct-2025
 
 just_the_docs:
   custom_css:
