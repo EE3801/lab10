@@ -1,3 +1,41 @@
 title: Lab 10
 remote_theme: just-the-docs/just-the-docs
 
+nav_external_links:
+  - title: Producer - 1. Scenario Streaming audio
+    url: lab10_1%20stream_data_pipeline_2_producer.html#1-scenario-streaming-audio
+  - title: Producer - 1.1 Single stream audio data auto-transcription
+    url: lab10_1%20stream_data_pipeline_2_producer.html#11-single-stream-audio-data-auto-transcription
+  - title: Producer - 1.2 Stream in audio
+    url: lab10_1%20stream_data_pipeline_2_producer.html#12-stream-in-audio
+  - title: Producer - 2. Read from the script as you are recording
+    url: lab10_1%20stream_data_pipeline_2_producer.html#2-read-from-the-script-as-you-are-recording
+  - title: Producer - 3. Capture every sentence in a paragraph
+    url: lab10_1%20stream_data_pipeline_2_producer.html#3-capture-every-sentence-in-a-paragraph
+  - title: Producer - 3.1 Initialise Producer
+    url: lab10_1%20stream_data_pipeline_2_producer.html#31-initialise-producer
+  - title: Producer - 3.2 Capture audio and send data through Producer
+    url: lab10_1%20stream_data_pipeline_2_producer.html#32-capture-audio-and-send-data-through-producer
+  - title: Producer - Conclusion
+    url: lab10_1%20stream_data_pipeline_2_producer.html#conclusion
+  - title: Submissions next Wed 9pm (29 Oct 2025)
+    url: lab10_1%20stream_data_pipeline_2_producer.html#submissions-next-wed-9pm-29-oct-2025
+    
+  - title: Consumer - 1. Load whisper
+    url: lab10_2%20stream_data_pipeline_2_consumer.html#1-load-whisper
+  - title: Consumer - 2. Consume audio stream and transcribe
+    url: lab10_2%20stream_data_pipeline_2_consumer.html#2-consume-audio-stream-and-transcribe
+  - title: Consumer - 2.1 Initialise Consumer
+    url: lab10_2%20stream_data_pipeline_2_consumer.html#21-initialise-consumer
+  - title: Consumer - 3. Consume audio stream, transcribe and identify number of speakers
+    url: lab10_2%20stream_data_pipeline_2_consumer.html#3-consume-audio-stream-transcribe-and-identify-number-of-speakers
+  - title: Consumer - 3.1 Detect speakers
+    url: lab10_2%20stream_data_pipeline_2_consumer.html#31-detect-speakers
+  - title: Consumer - 4. Insert data into Elasticsearch NoSQL database and visualize in Kibana.
+    url: lab10_2%20stream_data_pipeline_2_consumer.html#4-insert-data-into-elasticsearch-nosql-database-and-visualize-in-kibana
+
+just_the_docs:
+  custom_css:
+    - assets/css/style.scss
+    - assets/js/fix-links.js
+

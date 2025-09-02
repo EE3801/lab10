@@ -146,194 +146,194 @@ HfHubHTTPError: 401 Client Error: Unauthorized for url: https://huggingface.co/p
 
 
 
-```python
-# !pip3 install --upgrade pip
-# !pip3 install torch torchvision torchaudio
+    ```python
+    # !pip3 install --upgrade pip
+    # !pip3 install torch torchvision torchaudio
 
-# # for mac silicon
-# !pip3 install --pre torch torchvision torchaudio  --extra-index-url https://download.pytorch.org/whl/nightly/cpu
+    # # for mac silicon
+    # !pip3 install --pre torch torchvision torchaudio  --extra-index-url https://download.pytorch.org/whl/nightly/cpu
 
-# !pip3 install -U pyannote.audio
+    # !pip3 install -U pyannote.audio
 
-```
-
-
-```python
-### diarization - https://github.com/pyannote/pyannote-audio/tree/develop?tab=readme-ov-file
-from pyannote.audio import Pipeline
-import torchaudio
-import torch
-import pyaudio
-from scipy.signal import resample
-
-# DEVICE_ID = 4
-audio = pyaudio.PyAudio()
-input = audio.get_default_input_device_info()
-RATE = int(input['defaultSampleRate'])
-CHANNELS = int(input['maxInputChannels'])
-audio.terminate()
-
-speaker_list = []
-waveform_list = []
-speech_list = []
-time_speech_list = []
-dia_list = []
-
-def detect_speakers(audio_data_):
-    pipeline = Pipeline.from_pretrained(
-        "pyannote/speaker-diarization-3.1",
-        use_auth_token="<huggingface_token_for_pyannote_audio>")
-
-    # send pipeline to GPU (when available)
-    pipeline.to(torch.device("mps")) #cpu
-
-    this_waveform = torch.from_numpy(np.array([audio_data_])).float().to(device=torch.device('mps')) #cpu
-
-    # call the model to detect speakers in the audio data
-    diarization = pipeline({"waveform": this_waveform, "sample_rate": 16000})
-
-    # print the result
-    for turn, _, speaker in diarization.itertracks(yield_label=True):
-        start=f"{turn.start:.1f}"
-        end=f"{turn.end:.1f}"
-        print(f"start={turn.start:.1f}s stop={turn.end:.1f}s speaker_{speaker}")
-        speaker_list.append(speaker)
-    
-    return diarization
-
-# kafka-python Consumer
-from kafka import KafkaConsumer
-import json
-import numpy as np
-from datetime import datetime
-import sys
-from scipy.signal import resample
-
-# To consume latest messages and auto-commit offsets. Receive data from topic 'dataengineering'
-consumer = KafkaConsumer('dataengineering',
-                        #  group_id='python-consumer',
-                         bootstrap_servers=[public_ip_address+':29092',public_ip_address+':39092',public_ip_address+':49092'])
-                        #  consumer_timeout_ms=1000)
-                         #value_deserializer=lambda m: json.loads(m.decode('utf-8')))
-
-start_time = datetime.now()
-
-try: 
-    for message in consumer:
-        begin_time = datetime.now()
-        # message value and key are raw bytes -- decode if necessary!
-        # e.g., for unicode: `message.value.decode('utf-8')`
-        print("%s %s:%d:%d: key=%s" % (datetime.now().strftime("%d/%m/%Y, %H:%M:%S"), message.topic, message.partition,
-                                            message.offset, message.key.decode('utf-8')))
-
-        if message.key.decode('utf-8')=="text":
-            print("message=%s" % message.value.decode('utf-8'))
-
-        if message.key.decode('utf-8')=="audio":
-            audio_data = np.frombuffer(message.value, dtype=np.int16).flatten().astype(np.float32) / 32768.0
-            audio_data = whisper.pad_or_trim(audio_data)
-            before_transcribe_time = datetime.now()
-            
-            sample_rate = int(len(audio_data)*16000/RATE)
-            audio_data = resample(audio_data,num = sample_rate)
-            text = whisper.transcribe(model, audio_data, fp16=False)["text"]
-            speech_list.append(text)
-            time_speech_list.append(datetime.now())
-            print("transcribed.message=%s, transcribed.duration=%s" % (text, 
-                                                                       str(datetime.now()-before_transcribe_time)))
-            # detect speakers
-            waveform_list.append(audio_data)
-            dia = detect_speakers(audio_data)
-            dia_list.append(dia)
-            print("Number of speakers detected:",len(list(dict.fromkeys(speaker_list))))
+    ```
 
 
-        if (datetime.now()-start_time).seconds > 60: # listen for 1 minute (60 seconds)
-            consumer.close()
-            print("* Ended listening for 1 min *")
-            break
-except KeyboardInterrupt as kie:
-    consumer.close()
-    print("* Program terminated by user *")
+    ```python
+    ### diarization - https://github.com/pyannote/pyannote-audio/tree/develop?tab=readme-ov-file
+    from pyannote.audio import Pipeline
+    import torchaudio
+    import torch
+    import pyaudio
+    from scipy.signal import resample
 
-    
+    # DEVICE_ID = 4
+    audio = pyaudio.PyAudio()
+    input = audio.get_default_input_device_info()
+    RATE = int(input['defaultSampleRate'])
+    CHANNELS = int(input['maxInputChannels'])
+    audio.terminate()
+
+    speaker_list = []
+    waveform_list = []
+    speech_list = []
+    time_speech_list = []
+    dia_list = []
+
+    def detect_speakers(audio_data_):
+        pipeline = Pipeline.from_pretrained(
+            "pyannote/speaker-diarization-3.1",
+            use_auth_token="<huggingface_token_for_pyannote_audio>")
+
+        # send pipeline to GPU (when available)
+        pipeline.to(torch.device("mps")) #cpu
+
+        this_waveform = torch.from_numpy(np.array([audio_data_])).float().to(device=torch.device('mps')) #cpu
+
+        # call the model to detect speakers in the audio data
+        diarization = pipeline({"waveform": this_waveform, "sample_rate": 16000})
+
+        # print the result
+        for turn, _, speaker in diarization.itertracks(yield_label=True):
+            start=f"{turn.start:.1f}"
+            end=f"{turn.end:.1f}"
+            print(f"start={turn.start:.1f}s stop={turn.end:.1f}s speaker_{speaker}")
+            speaker_list.append(speaker)
         
-```
+        return diarization
+
+    # kafka-python Consumer
+    from kafka import KafkaConsumer
+    import json
+    import numpy as np
+    from datetime import datetime
+    import sys
+    from scipy.signal import resample
+
+    # To consume latest messages and auto-commit offsets. Receive data from topic 'dataengineering'
+    consumer = KafkaConsumer('dataengineering',
+                            #  group_id='python-consumer',
+                            bootstrap_servers=[public_ip_address+':29092',public_ip_address+':39092',public_ip_address+':49092'])
+                            #  consumer_timeout_ms=1000)
+                            #value_deserializer=lambda m: json.loads(m.decode('utf-8')))
+
+    start_time = datetime.now()
+
+    try: 
+        for message in consumer:
+            begin_time = datetime.now()
+            # message value and key are raw bytes -- decode if necessary!
+            # e.g., for unicode: `message.value.decode('utf-8')`
+            print("%s %s:%d:%d: key=%s" % (datetime.now().strftime("%d/%m/%Y, %H:%M:%S"), message.topic, message.partition,
+                                                message.offset, message.key.decode('utf-8')))
+
+            if message.key.decode('utf-8')=="text":
+                print("message=%s" % message.value.decode('utf-8'))
+
+            if message.key.decode('utf-8')=="audio":
+                audio_data = np.frombuffer(message.value, dtype=np.int16).flatten().astype(np.float32) / 32768.0
+                audio_data = whisper.pad_or_trim(audio_data)
+                before_transcribe_time = datetime.now()
+                
+                sample_rate = int(len(audio_data)*16000/RATE)
+                audio_data = resample(audio_data,num = sample_rate)
+                text = whisper.transcribe(model, audio_data, fp16=False)["text"]
+                speech_list.append(text)
+                time_speech_list.append(datetime.now())
+                print("transcribed.message=%s, transcribed.duration=%s" % (text, 
+                                                                        str(datetime.now()-before_transcribe_time)))
+                # detect speakers
+                waveform_list.append(audio_data)
+                dia = detect_speakers(audio_data)
+                dia_list.append(dia)
+                print("Number of speakers detected:",len(list(dict.fromkeys(speaker_list))))
+
+
+            if (datetime.now()-start_time).seconds > 60: # listen for 1 minute (60 seconds)
+                consumer.close()
+                print("* Ended listening for 1 min *")
+                break
+    except KeyboardInterrupt as kie:
+        consumer.close()
+        print("* Program terminated by user *")
+
+        
+            
+    ```
 
 4. Plot the data to visualise the interaction. 
 
 
-```python
-import matplotlib.pyplot as plt
-from pyannote.core import Segment
-import matplotlib.cm as cm
+    ```python
+    import matplotlib.pyplot as plt
+    from pyannote.core import Segment
+    import matplotlib.cm as cm
 
-# Assuming dia_list is a list of pyannote Annotation objects
-# and speech_list is a list of corresponding audio segment descriptions
+    # Assuming dia_list is a list of pyannote Annotation objects
+    # and speech_list is a list of corresponding audio segment descriptions
 
-fig, ax = plt.subplots(figsize=(12, 4))
+    fig, ax = plt.subplots(figsize=(12, 4))
 
-cumulative_offset = 0.0
-color_map = plt.get_cmap('tab10')  # To get distinct colors for speakers
-speaker_colors = {}
+    cumulative_offset = 0.0
+    color_map = plt.get_cmap('tab10')  # To get distinct colors for speakers
+    speaker_colors = {}
 
-speech_detect_json = []
+    speech_detect_json = []
 
-for idx, diarization in enumerate(dia_list):
-    print(speech_list[idx])
+    for idx, diarization in enumerate(dia_list):
+        print(speech_list[idx])
 
-    for segment, track, speaker in diarization.itertracks(yield_label=True):
-        # Offset segment start and end by cumulative_offset
-        start = segment.start + cumulative_offset
-        end = segment.end + cumulative_offset
+        for segment, track, speaker in diarization.itertracks(yield_label=True):
+            # Offset segment start and end by cumulative_offset
+            start = segment.start + cumulative_offset
+            end = segment.end + cumulative_offset
 
-        # Assign a consistent color to each speaker
-        if speaker not in speaker_colors:
-            speaker_colors[speaker] = color_map(len(speaker_colors) % 10)
+            # Assign a consistent color to each speaker
+            if speaker not in speaker_colors:
+                speaker_colors[speaker] = color_map(len(speaker_colors) % 10)
 
-        ax.hlines(y=speaker, xmin=start, xmax=end, linewidth=5,
-                  color=speaker_colors[speaker])
+            ax.hlines(y=speaker, xmin=start, xmax=end, linewidth=5,
+                    color=speaker_colors[speaker])
 
-        print(f"Speaker {speaker}: Start={round(start, 2)}, End={round(end, 2)}")
-        speech_detect_json.append({'speaker':speaker,'start':round(start, 2), 'end':round(end, 2)})
+            print(f"Speaker {speaker}: Start={round(start, 2)}, End={round(end, 2)}")
+            speech_detect_json.append({'speaker':speaker,'start':round(start, 2), 'end':round(end, 2)})
 
-    # Update the offset for next audio clip
-    cumulative_offset = end  # end of the last segment in the current diarization
+        # Update the offset for next audio clip
+        cumulative_offset = end  # end of the last segment in the current diarization
 
-ax.set_xlabel("Time (s)")
-ax.set_ylabel("Speaker")
-ax.set_title("Speaker Diarization Timeline")
-plt.tight_layout()
-plt.show()
+    ax.set_xlabel("Time (s)")
+    ax.set_ylabel("Speaker")
+    ax.set_title("Speaker Diarization Timeline")
+    plt.tight_layout()
+    plt.show()
 
-```
+    ```
 
 5. Below displayed the text and plots of all sections in the video that is transcribed and play the audio. This is for your to verify the audio captured.
 
 
-```python
-import matplotlib.pyplot as plt
-import sounddevice as sd
+    ```python
+    import matplotlib.pyplot as plt
+    import sounddevice as sd
 
-DEVICE_ID = 2
-audio = pyaudio.PyAudio()
-RATE = int(audio.get_device_info_by_index(DEVICE_ID)['defaultSampleRate'])
-CHANNELS = int(audio.get_device_info_by_index(DEVICE_ID)['maxInputChannels'])
-sample_rate = int(len(audio_data)*16000/RATE)
-audio.terminate()
+    DEVICE_ID = 2
+    audio = pyaudio.PyAudio()
+    RATE = int(audio.get_device_info_by_index(DEVICE_ID)['defaultSampleRate'])
+    CHANNELS = int(audio.get_device_info_by_index(DEVICE_ID)['maxInputChannels'])
+    sample_rate = int(len(audio_data)*16000/RATE)
+    audio.terminate()
 
-i=0
-for wave in waveform_list:
-    plt.plot(np.array(wave))
-    plt.show()
-    print(speech_list[i])
-    print(dia_list[i])
+    i=0
+    for wave in waveform_list:
+        plt.plot(np.array(wave))
+        plt.show()
+        print(speech_list[i])
+        print(dia_list[i])
 
-    sd.play(wave, 16000)
-    sd.wait()
-    i+=1
+        sd.play(wave, 16000)
+        sd.wait()
+        i+=1
 
-```
+    ```
 
 # 4. Insert data into Elasticsearch NoSQL database and visualize in Kibana.
 
@@ -345,15 +345,15 @@ for wave in waveform_list:
 2. Install elasticsearch in python
 
 
-```python
-# !pip3 install elasticsearch
-```
+    ```python
+    # !pip3 install elasticsearch
+    ```
 
 
-```python
-# check the data
-speech_detect_json
-```
+    ```python
+    # check the data
+    speech_detect_json
+    ```
 
 3. SSH into server.
 
@@ -377,25 +377,25 @@ speech_detect_json
 
 
 
-```python
-from elasticsearch import Elasticsearch
+    ```python
+    from elasticsearch import Elasticsearch
 
-def insertElasticsearch(dia_json,index):
+    def insertElasticsearch(dia_json,index):
 
-    es = Elasticsearch({'https://'+public_ip_address+':9200'}, basic_auth=("elastic", "<huggingface_token_for_pyannote_audio>"), verify_certs=False) 
+        es = Elasticsearch({'https://'+public_ip_address+':9200'}, basic_auth=("elastic", "<huggingface_token_for_pyannote_audio>"), verify_certs=False) 
 
-    doc=json.dumps(dia_json, indent=4)
-    res=es.index(index="speech_detection_duration",
-                # doc_type="doc",
-                id=index,
-                document=doc) # replaced body with document
-    print(res)
+        doc=json.dumps(dia_json, indent=4)
+        res=es.index(index="speech_detection_duration",
+                    # doc_type="doc",
+                    id=index,
+                    document=doc) # replaced body with document
+        print(res)
 
-i=0
-for speech in speech_detect_json:
-    insertElasticsearch(speech,i)
-    i+=1
-```
+    i=0
+    for speech in speech_detect_json:
+        insertElasticsearch(speech,i)
+        i+=1
+    ```
 
 8. Screen capture to show that data is shown in Kibana > Display. Save the screen capture and submit.
 
