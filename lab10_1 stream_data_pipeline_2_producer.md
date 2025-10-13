@@ -38,15 +38,17 @@ You will need two notebook to run concurrently.
 
 Note: If your AWS EC2 instance public_ip_address is changed, you will need to stop and remove all kafka containers. Create them again and create a topic too. Follow these steps below:\
 
-```docker stop $(docker ps -q -f "name=kafka”)```
+<!--```docker stop $(docker ps -q -f "name=kafka”)```
 
 ```docker rm $(docker ps -aq -f "name=kafka")```
 
 ```cd ~/dev_kafka```
 
-```IMAGE=apache/kafka:latest PUBLIC_IP_ADDRESS=<ip_address> docker-compose up```
+```IMAGE=apache/kafka:latest PUBLIC_IP_ADDRESS=<ip_address> docker-compose up```-->
 
-```docker start $(docker ps -aq -f "name=kafka")```
+```export PUBLIC_IP_ADDRESS=<ip_address>```
+
+```docker restart $(docker ps -aq -f "name=kafka")```
 
 ```docker exec -it kafka-1 /bin/bash```
 
