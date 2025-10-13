@@ -71,7 +71,8 @@ Test out the container using different terminals logged in to server.\
 
 ```python
 # # install python packages
-# !pip install --upgrade pip
+# !python3 -m pip install --upgrade pip
+# !python3 -m pip install kafka-python
 
 # # for mac users
 # !brew install portaudio 
