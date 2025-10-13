@@ -148,11 +148,11 @@ Test out the container using different terminals logged in to server.\
     ```
 
 # 2. Read from the script as you are recording
-```
-Producers are fairly straightforward – they send messages to a topic and partition, maybe request an acknowledgment, retry if a message fails – or not – and continue. Consumers, however, can be a little more complicated.
 
-Consumers read messages from a topic. Consumers run in a poll loop that runs indefinitely waiting for messages. Consumers can read from the beginning – they will start at the first message in the topic and read the entire history. Once caught up, the consumer will wait for new messages.
-```
+* Producers are fairly straightforward – they send messages to a topic and partition, maybe request an acknowledgment, retry if a message fails – or not – and continue. Consumers, however, can be a little more complicated.
+
+* Consumers read messages from a topic. Consumers run in a poll loop that runs indefinitely waiting for messages. Consumers can read from the beginning – they will start at the first message in the topic and read the entire history. Once caught up, the consumer will wait for new messages.
+
 
 # 3. Capture every sentence in a paragraph 
 Using the device's audio capture the audio, record the sentence, send the audio data using Producer to a topic.
