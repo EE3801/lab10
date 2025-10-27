@@ -186,7 +186,7 @@ HfHubHTTPError: 401 Client Error: Unauthorized for url: https://huggingface.co/p
     def detect_speakers(audio_data_):
         pipeline = Pipeline.from_pretrained(
             "pyannote/speaker-diarization-3.1",
-            use_auth_token="<huggingface_token_for_pyannote_audio>")
+            token="<huggingface_token_for_pyannote_audio>")
 
         # send pipeline to GPU (when available)
         pipeline.to(torch.device("mps")) #cpu
@@ -416,7 +416,7 @@ HfHubHTTPError: 401 Client Error: Unauthorized for url: https://huggingface.co/p
 
     def insertElasticsearch(dia_json,index):
 
-        es = Elasticsearch({'https://'+public_ip_address+':9200'}, basic_auth=("elastic", "<huggingface_token_for_pyannote_audio>"), verify_certs=False) 
+        es = Elasticsearch({'https://'+public_ip_address+':9200'}, basic_auth=("elastic", "<elasticsearch password>"), verify_certs=False) 
 
         doc=json.dumps(dia_json, indent=4)
         res=es.index(index="speech_detection_duration",
