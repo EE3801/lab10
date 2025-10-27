@@ -366,7 +366,8 @@ HfHubHTTPError: 401 Client Error: Unauthorized for url: https://huggingface.co/p
     ```
 
     ```python
-    [{'speaker': 'SPEAKER_00', 'start': 4.27, 'end': 5.3},
+    # for those who are unable to run the diarization codes.
+    speech_detect_json = [{'speaker': 'SPEAKER_00', 'start': 4.27, 'end': 5.3},
      {'speaker': 'SPEAKER_00', 'start': 5.52, 'end': 7.37},
      {'speaker': 'SPEAKER_00', 'start': 8.47, 'end': 9.97},
      {'speaker': 'SPEAKER_00', 'start': 10.0, 'end': 12.25},
