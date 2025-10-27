@@ -197,7 +197,8 @@ HfHubHTTPError: 401 Client Error: Unauthorized for url: https://huggingface.co/p
         diarization = pipeline({"waveform": this_waveform, "sample_rate": 16000})
 
         # print the result
-        for turn, _, speaker in diarization.itertracks(yield_label=True):
+        # for turn, _, speaker in diarization.itertracks(yield_label=True):
+        for turn, speaker in diarization.speaker_diarization:
             start=f"{turn.start:.1f}"
             end=f"{turn.end:.1f}"
             print(f"start={turn.start:.1f}s stop={turn.end:.1f}s speaker_{speaker}")
@@ -290,7 +291,8 @@ HfHubHTTPError: 401 Client Error: Unauthorized for url: https://huggingface.co/p
     for idx, diarization in enumerate(dia_list):
         print(speech_list[idx])
 
-        for segment, track, speaker in diarization.itertracks(yield_label=True):
+        #for segment, track, speaker in diarization.itertracks(yield_label=True):
+        for turn, speaker in diarization.speaker_diarization:
             # Offset segment start and end by cumulative_offset
             start = segment.start + cumulative_offset
             end = segment.end + cumulative_offset
