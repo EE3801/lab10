@@ -36,32 +36,32 @@ You will need two notebook to run concurrently.
 
     ```docker ps -a```
 
-Note: If your AWS EC2 instance public_ip_address is changed, you will need to stop and remove all kafka containers. Create them again and create a topic too. Follow these steps below:\
-
-```docker stop $(docker ps -q -f "name=kafka”)```
-
-```docker rm $(docker ps -aq -f "name=kafka")```
-
-```cd ~/dev_kafka```
-
-```IMAGE=apache/kafka:latest PUBLIC_IP_ADDRESS=<ip_address> docker-compose up```
-
-<!--```export PUBLIC_IP_ADDRESS=<ip_address>```-->
-
-```docker restart $(docker ps -aq -f "name=kafka")```
-
-```docker exec -it kafka-1 /bin/bash```
-
-```/opt/kafka/bin/kafka-topics.sh --create --topic dataengineering --replication-factor 2 --bootstrap-server localhost:9092```
-
-```/opt/kafka/bin/kafka-topics.sh --describe --topic dataengineering --bootstrap-server localhost:9092```
-
-```exit```
-
-Test out the container using different terminals logged in to server.\
-```docker exec -it kafka-1 /opt/kafka/bin/kafka-console-producer.sh --topic dataengineering --bootstrap-server localhost:9092```
-
-```docker exec -it kafka-1 /opt/kafka/bin/kafka-console-consumer.sh --topic dataengineering --from-beginning --bootstrap-server localhost:9092```
+    Note: If your AWS EC2 instance public_ip_address is changed, you will need to stop and remove all kafka containers. Create them again and create a topic too. Follow these steps below:\
+    
+    ```docker stop $(docker ps -q -f "name=kafka”)```
+    
+    ```docker rm $(docker ps -aq -f "name=kafka")```
+    
+    ```cd ~/dev_kafka```
+    
+    ```IMAGE=apache/kafka:latest PUBLIC_IP_ADDRESS=<ip_address> docker-compose up```
+    
+    <!--```export PUBLIC_IP_ADDRESS=<ip_address>```-->
+    
+    ```docker restart $(docker ps -aq -f "name=kafka")```
+    
+    ```docker exec -it kafka-1 /bin/bash```
+    
+    ```/opt/kafka/bin/kafka-topics.sh --create --topic dataengineering --replication-factor 2 --bootstrap-server localhost:9092```
+    
+    ```/opt/kafka/bin/kafka-topics.sh --describe --topic dataengineering --bootstrap-server localhost:9092```
+    
+    ```exit```
+    
+    Test out the container using different terminals logged in to server.\
+    ```docker exec -it kafka-1 /opt/kafka/bin/kafka-console-producer.sh --topic dataengineering --bootstrap-server localhost:9092```
+    
+    ```docker exec -it kafka-1 /opt/kafka/bin/kafka-console-consumer.sh --topic dataengineering --from-beginning --bootstrap-server localhost:9092```
 
 
 
