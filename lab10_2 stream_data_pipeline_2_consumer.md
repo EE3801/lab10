@@ -104,7 +104,11 @@ try:
             print("message=%s" % message.value.decode('utf-8'))
 
         if message.key.decode('utf-8')=="audio":
-            audio_data = np.frombuffer(message.value, dtype=np.int16).flatten().astype(np.float32) / 32768.0
+            audio_data = np.frombuffer(message.value, dtype=np.int16).flatten().astype(np.float32) 
+            if CHANNELS > 1:
+                audio_data = audio_data.reshape((-1, CHANNELS))
+                audio_data = audio_data.mean(axis=1)
+            audio_data = audio_data / 32768.0
             audio_data = whisper.pad_or_trim(audio_data)
             before_transcribe_time = datetime.now()
             sample_rate = int(len(audio_data)*16000/RATE)
@@ -230,7 +234,11 @@ HfHubHTTPError: 401 Client Error: Unauthorized for url: https://huggingface.co/p
                 print("message=%s" % message.value.decode('utf-8'))
 
             if message.key.decode('utf-8')=="audio":
-                audio_data = np.frombuffer(message.value, dtype=np.int16).flatten().astype(np.float32) / 32768.0
+                audio_data = np.frombuffer(message.value, dtype=np.int16).flatten().astype(np.float32) 
+                if CHANNELS > 1:
+                    audio_data = audio_data.reshape((-1, CHANNELS))
+                    audio_data = audio_data.mean(axis=1)
+                audio_data = audio_data  / 32768.0
                 audio_data = whisper.pad_or_trim(audio_data)
                 before_transcribe_time = datetime.now()
                 
@@ -353,6 +361,29 @@ HfHubHTTPError: 401 Client Error: Unauthorized for url: https://huggingface.co/p
     ```python
     # check the data
     speech_detect_json
+    ```
+
+    ```python
+    [{'speaker': 'SPEAKER_00', 'start': 4.27, 'end': 5.3},
+     {'speaker': 'SPEAKER_00', 'start': 5.52, 'end': 7.37},
+     {'speaker': 'SPEAKER_00', 'start': 8.47, 'end': 9.97},
+     {'speaker': 'SPEAKER_00', 'start': 10.0, 'end': 12.25},
+     {'speaker': 'SPEAKER_00', 'start': 13.63, 'end': 17.88},
+     {'speaker': 'SPEAKER_01', 'start': 17.88, 'end': 19.94},
+     {'speaker': 'SPEAKER_01', 'start': 19.97, 'end': 20.38},
+     {'speaker': 'SPEAKER_00', 'start': 20.38, 'end': 20.55},
+     {'speaker': 'SPEAKER_01', 'start': 20.55, 'end': 22.0},
+     {'speaker': 'SPEAKER_00', 'start': 22.0, 'end': 22.23},
+     {'speaker': 'SPEAKER_01', 'start': 22.23, 'end': 22.27},
+     {'speaker': 'SPEAKER_00', 'start': 22.27, 'end': 22.32},
+     {'speaker': 'SPEAKER_01', 'start': 22.32, 'end': 22.38},
+     {'speaker': 'SPEAKER_00', 'start': 22.38, 'end': 25.66},
+     {'speaker': 'SPEAKER_01', 'start': 25.66, 'end': 26.64},
+     {'speaker': 'SPEAKER_00', 'start': 26.57, 'end': 29.91},
+     {'speaker': 'SPEAKER_00', 'start': 29.94, 'end': 34.79},
+     {'speaker': 'SPEAKER_00', 'start': 37.99, 'end': 39.88},
+     {'speaker': 'SPEAKER_00', 'start': 39.91, 'end': 49.85},
+     {'speaker': 'SPEAKER_00', 'start': 49.88, 'end': 59.82}]
     ```
 
 3. SSH into server.
