@@ -1,54 +1,44 @@
 # Lab 10.2 Stream Data Pipeline II - Consumer
 
-- Scenario: Streaming audio \
-    Stream in audio, process, calling a machine learning classification model, save the data and visualize for reporting.
+- Scenario: Streaming audio\
+  Stream audio, process it with a machine learning model, save the data, and visualize it for reporting.
 
-Create a new jupyter notebook file "stream_data_pipeline_2_consumer.ipynb".
-
+Create a new Jupyter notebook file named `stream_data_pipeline_2_consumer.ipynb`.
 
 ```python
 import os
 home_directory = os.path.expanduser("~")
-os.chdir(home_directory+'/Documents/projects/ee3801')
+os.chdir(os.path.join(home_directory, 'Documents', 'projects', 'ee3801'))
 ```
 
-# 1. Load whisper
+# 1. Load Whisper
 
+On the local machine, install and load the Whisper model.
 
 ```python
-# !pip3 install -U jupyter
-# !pip3 install -U ipywidgets
-# !pip3 install openai-whisper
-
-## python 3.11.5
-# !pip3 install -U torch
-# !pip3 uninstall numpy -y
-# !pip3 install numpy==1.26.4
-# !pip3 install kafka-python
-## restart kernel
-
+# !python3 -m pip install kafka-python
+## Restart the kernel after installation.
 ```
-
 
 ```python
 import whisper
-model = whisper.load_model("medium.en") 
+# if you have limited storage use `tiny.en`
+model = whisper.load_model("medium.en")
 ```
 
-
-```python
+<!-- ```python
 # !python -m pip install pandas
 # !python -m pip install -U scikit-learn
 # !python -m pip install nltk
 # !python -m pip install matplotlib
 # !python -m pip install sentence_transformers
-
-```
+``` -->
 
 # 2. Consume audio stream and transcribe
 
-# 2.1 Initialise Consumer
+## 2.1 Initialize the consumer
 
+The consumer listens for audio messages on the `dataengineering` topic, transcribes them with Whisper, and prints the results.
 
 ```python
 import pyaudio
@@ -59,16 +49,14 @@ RECORD_SECONDS = 10
 # DEVICE_ID = 4
 
 audio = pyaudio.PyAudio()
-input = audio.get_default_input_device_info()
-RATE = int(input['defaultSampleRate'])
-CHANNELS = int(input['maxInputChannels'])
-
+input_device = audio.get_default_input_device_info()
+RATE = int(input_device['defaultSampleRate'])
+CHANNELS = int(input_device['maxInputChannels'])
 ```
 
-1. Replace the ```<ip_address>``` with your AWS EC2 instance public ip address.
+1. Replace `<ip_address>` with your AWS EC2 public IP address.
 
-2. The codes below is the Kafka Consumer that will listen for data from the Kafka Producer in the topic ```dataengineering```.
-
+2. Use the following code to create the Kafka consumer:
 
 ```python
 # kafka-python Consumer
@@ -81,89 +69,92 @@ from scipy.signal import resample
 
 public_ip_address = "<ip_address>"
 
-# To consume latest messages and auto-commit offsets
-consumer = KafkaConsumer('dataengineering',
-                        #  group_id='python-consumer',
-                         bootstrap_servers=[public_ip_address+':29092',public_ip_address+':39092',public_ip_address+':49092'])
-                        #  consumer_timeout_ms=1000)
-                         #value_deserializer=lambda m: json.loads(m.decode('utf-8')))
+consumer = KafkaConsumer(
+    'dataengineering',
+    # group_id='python-consumer',
+    bootstrap_servers=[
+        public_ip_address + ':29092',
+        public_ip_address + ':39092',
+        public_ip_address + ':49092'
+    ]
+    # consumer_timeout_ms=1000,
+    # value_deserializer=lambda m: json.loads(m.decode('utf-8'))
+)
 
 start_time = datetime.now()
-
 compiled_message = []
 
-try: 
+try:
     for message in consumer:
-        begin_time = datetime.now()
-        # message value and key are raw bytes -- decode if necessary!
+        # message value and key are raw bytes -- decode if necessary
         # e.g., for unicode: `message.value.decode('utf-8')`
-        print("%s %s:%d:%d: key=%s" % (datetime.now().strftime("%d/%m/%Y, %H:%M:%S"), message.topic, message.partition,
-                                            message.offset, message.key.decode('utf-8')))
+        print("%s %s:%d:%d: key=%s" % (
+            datetime.now().strftime("%d/%m/%Y, %H:%M:%S"),
+            message.topic,
+            message.partition,
+            message.offset,
+            message.key.decode('utf-8')
+        ))
 
-        if message.key.decode('utf-8')=="text":
+        if message.key.decode('utf-8') == "text":
             print("message=%s" % message.value.decode('utf-8'))
 
-        if message.key.decode('utf-8')=="audio":
-            audio_data = np.frombuffer(message.value, dtype=np.int16).flatten().astype(np.float32) 
+        if message.key.decode('utf-8') == "audio":
+            audio_data = np.frombuffer(message.value, dtype=np.int16).flatten().astype(np.float32)
             if CHANNELS > 1:
                 audio_data = audio_data.reshape((-1, CHANNELS))
                 audio_data = audio_data.mean(axis=1)
             audio_data = audio_data / 32768.0
             audio_data = whisper.pad_or_trim(audio_data)
             before_transcribe_time = datetime.now()
-            sample_rate = int(len(audio_data)*16000/RATE)
-            audio_data = resample(audio_data,num = sample_rate)
+            sample_rate = int(len(audio_data) * 16000 / RATE)
+            audio_data = resample(audio_data, num=sample_rate)
             text = whisper.transcribe(model, audio_data, fp16=False)["text"]
             compiled_message.append(text)
-            print("transcribed.message=%s, transcribed.duration=%s" % (text, 
-                                                                       str(datetime.now()-before_transcribe_time)))
+            print("transcribed.message=%s, transcribed.duration=%s" % (
+                text,
+                str(datetime.now() - before_transcribe_time)
+            ))
 
-        if (datetime.now()-start_time).seconds > 60: # listen for 1 minute (60 seconds)
-            consumer.close()
-            print("compiled.message=%s" % (' '.join(compiled_message)))
+        # listen for 1 min
+        if (datetime.now() - start_time).seconds > 60:
+            print("***********")
             print("* Ended listening for 1 min *")
+            print("compiled.message=%s" % (' '.join(compiled_message)))
             break
-except KeyboardInterrupt as kie:
-    consumer.close()
-    print("compiled.message=%s" % (' '.join(compiled_message)))
+except KeyboardInterrupt:
+    print("***********")
     print("* Program terminated by user *")
-
-
+    print("compiled.message=%s" % (' '.join(compiled_message)))
+finally:
+    consumer.close()
     
 ```
 
-# 3. Consume audio stream, transcribe and identify number of speakers
+# 3. Transcribe audio and identify speakers
 
-# 3.1 Detect speakers
+## 3.1 Detect speakers
 
-Here we call classification model to identify speakers in the audio.
+This section uses speaker diarization to identify who is speaking.
 
-1. Follow the steps in the website to install pyannote.audio, https://github.com/pyannote/pyannote-audio. 
-
-HfHubHTTPError: 401 Client Error: Unauthorized for url: https://huggingface.co/pyannote/speaker-diarization-3.0. Go to the url link, sign up in huggingface and request for access. Then click on Agree and access repository.
-
-2. Install the softwares to detect speakers.
-
-3. Replace the ```<huggingface_token_for_pyannote_audio>``` with your huggingface token retrieved for pyannote.audio.
-
-4. Before you run the codes below, play a youtube video that has two person speaking. Run lab10_1, section 3.2 codes. Then run the codes below. You should be able to see the transcribed text and different speakers detected.
-
-
+1. Install `pyannote.audio` by following the instructions at https://github.com/pyannote/pyannote-audio.
+2. If you see a Hugging Face authorization error, sign in to Hugging Face, request access to `pyannote/speaker-diarization-3.0`, and accept it.
+3. Replace `<huggingface_token_for_pyannote_audio>` with your Hugging Face token.
+4. Before running the code below, play a recording with multiple speakers and run the producer code in Lab 10.1 section 3.2.
+5. You can use your own audio or this youtube link on <a href="https://youtu.be/JOh-9iaPcGU?si=LDDKfy4bzLVxLaRH">No.1 Performance Psychologist: The Secret to High Performance and Excellence</a>. 
 
     ```python
-    # !pip3 install --upgrade pip
-    # !pip3 install torch torchvision torchaudio
+    # !python3 -m pip install --upgrade pip
+    # !python3 -m pip install torch torchvision torchaudio
 
-    # # for mac silicon
-    # !pip3 install --pre torch torchvision torchaudio  --extra-index-url https://download.pytorch.org/whl/nightly/cpu
+    # For macOS Apple Silicon:
+    # !python3 -m pip install --pre torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/nightly/cpu
 
-    # !pip3 install -U pyannote.audio
-
+    # !python3 -m pip install -U pyannote.audio
     ```
 
-
     ```python
-    ### diarization - https://github.com/pyannote/pyannote-audio/tree/develop?tab=readme-ov-file
+    # diarization - https://github.com/pyannote/pyannote-audio/tree/develop?tab=readme-ov-file
     from pyannote.audio import Pipeline
     import torchaudio
     import torch
@@ -186,177 +177,202 @@ HfHubHTTPError: 401 Client Error: Unauthorized for url: https://huggingface.co/p
     def detect_speakers(audio_data_):
         pipeline = Pipeline.from_pretrained(
             "pyannote/speaker-diarization-3.1",
-            token="<huggingface_token_for_pyannote_audio>")
+            token="<huggingface_token_for_pyannote_audio>"
+        )
 
-        # send pipeline to GPU (when available)
-        pipeline.to(torch.device("mps")) #cpu
+        pipeline.to(torch.device("mps"))  # Use CPU if MPS is unavailable.
+        this_waveform = torch.from_numpy(np.array([audio_data_])).float().to(device=torch.device('mps'))
 
-        this_waveform = torch.from_numpy(np.array([audio_data_])).float().to(device=torch.device('mps')) #cpu
-
-        # call the model to detect speakers in the audio data
+        # call the model to detect speakers in the audio
         diarization = pipeline({"waveform": this_waveform, "sample_rate": 16000})
 
-        # print the result
-        # for turn, _, speaker in diarization.itertracks(yield_label=True):
         for turn, speaker in diarization.speaker_diarization:
-            start=f"{turn.start:.1f}"
-            end=f"{turn.end:.1f}"
             print(f"start={turn.start:.1f}s stop={turn.end:.1f}s speaker_{speaker}")
             speaker_list.append(speaker)
-        
+
         return diarization
 
-    # kafka-python Consumer
     from kafka import KafkaConsumer
-    import json
-    import numpy as np
     from datetime import datetime
-    import sys
-    from scipy.signal import resample
 
-    # To consume latest messages and auto-commit offsets. Receive data from topic 'dataengineering'
-    consumer = KafkaConsumer('dataengineering',
-                            #  group_id='python-consumer',
-                            bootstrap_servers=[public_ip_address+':29092',public_ip_address+':39092',public_ip_address+':49092'])
-                            #  consumer_timeout_ms=1000)
-                            #value_deserializer=lambda m: json.loads(m.decode('utf-8')))
+    consumer = KafkaConsumer(
+        'dataengineering',
+        bootstrap_servers=[
+            public_ip_address + ':29092',
+            public_ip_address + ':39092',
+            public_ip_address + ':49092'
+        ]
+    )
 
     start_time = datetime.now()
 
-    try: 
+    try:
         for message in consumer:
-            begin_time = datetime.now()
-            # message value and key are raw bytes -- decode if necessary!
-            # e.g., for unicode: `message.value.decode('utf-8')`
-            print("%s %s:%d:%d: key=%s" % (datetime.now().strftime("%d/%m/%Y, %H:%M:%S"), message.topic, message.partition,
-                                                message.offset, message.key.decode('utf-8')))
+            print("%s %s:%d:%d: key=%s" % (
+                datetime.now().strftime("%d/%m/%Y, %H:%M:%S"),
+                message.topic,
+                message.partition,
+                message.offset,
+                message.key.decode('utf-8')
+            ))
 
-            if message.key.decode('utf-8')=="text":
+            if message.key.decode('utf-8') == "text":
                 print("message=%s" % message.value.decode('utf-8'))
 
-            if message.key.decode('utf-8')=="audio":
-                audio_data = np.frombuffer(message.value, dtype=np.int16).flatten().astype(np.float32) 
+            if message.key.decode('utf-8') == "audio":
+                audio_data = np.frombuffer(message.value, dtype=np.int16).flatten().astype(np.float32)
                 if CHANNELS > 1:
                     audio_data = audio_data.reshape((-1, CHANNELS))
                     audio_data = audio_data.mean(axis=1)
-                audio_data = audio_data  / 32768.0
+                audio_data = audio_data / 32768.0
                 audio_data = whisper.pad_or_trim(audio_data)
                 before_transcribe_time = datetime.now()
-                
-                sample_rate = int(len(audio_data)*16000/RATE)
-                audio_data = resample(audio_data,num = sample_rate)
+                sample_rate = int(len(audio_data) * 16000 / RATE)
+                audio_data = resample(audio_data, num=sample_rate)
                 text = whisper.transcribe(model, audio_data, fp16=False)["text"]
                 speech_list.append(text)
                 time_speech_list.append(datetime.now())
-                print("transcribed.message=%s, transcribed.duration=%s" % (text, 
-                                                                        str(datetime.now()-before_transcribe_time)))
-                # detect speakers
+                print("transcribed.message=%s, transcribed.duration=%s" % (
+                    text,
+                    str(datetime.now() - before_transcribe_time)
+                ))
+
                 waveform_list.append(audio_data)
                 dia = detect_speakers(audio_data)
                 dia_list.append(dia)
-                print("Number of speakers detected:",len(list(dict.fromkeys(speaker_list))))
+                print("Number of speakers detected:", len(list(dict.fromkeys(speaker_list))))
 
-
-            if (datetime.now()-start_time).seconds > 60: # listen for 1 minute (60 seconds)
-                consumer.close()
+            if (datetime.now() - start_time).seconds > 60:
                 print("* Ended listening for 1 min *")
                 break
-    except KeyboardInterrupt as kie:
-        consumer.close()
+    except KeyboardInterrupt:
         print("* Program terminated by user *")
-
+    finally:
+        consumer.close()
         
-            
     ```
 
-4. Plot the data to visualise the interaction. 
+## 3.2 Plot speaker activity
 
+Plot the diarization results to visualize speaker turns.
 
-    ```python
-    import matplotlib.pyplot as plt
-    from pyannote.core import Segment
-    import matplotlib.cm as cm
+```python
+import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 
-    # Assuming dia_list is a list of pyannote Annotation objects
-    # and speech_list is a list of corresponding audio segment descriptions
+fig, ax = plt.subplots(figsize=(12, 4))
 
-    fig, ax = plt.subplots(figsize=(12, 4))
+cumulative_offset = 0.0
+color_map = plt.get_cmap('tab10')
+speaker_colors = {}
+speech_detect_json = []
 
-    cumulative_offset = 0.0
-    color_map = plt.get_cmap('tab10')  # To get distinct colors for speakers
-    speaker_colors = {}
+for idx, diarization in enumerate(dia_list):
+    print(speech_list[idx])
 
-    speech_detect_json = []
+    for turn, speaker in diarization.speaker_diarization:
+        start = turn.start + cumulative_offset
+        end = turn.end + cumulative_offset
 
-    for idx, diarization in enumerate(dia_list):
-        print(speech_list[idx])
+        if speaker not in speaker_colors:
+            speaker_colors[speaker] = color_map(len(speaker_colors) % 10)
 
-        #for segment, track, speaker in diarization.itertracks(yield_label=True):
-        for turn, speaker in diarization.speaker_diarization:
-            # Offset segment start and end by cumulative_offset
-            start = segment.start + cumulative_offset
-            end = segment.end + cumulative_offset
+        ax.hlines(y=speaker, xmin=start, xmax=end, linewidth=5,
+                  color=speaker_colors[speaker])
 
-            # Assign a consistent color to each speaker
-            if speaker not in speaker_colors:
-                speaker_colors[speaker] = color_map(len(speaker_colors) % 10)
+        print(f"Speaker {speaker}: Start={round(start, 2)}, End={round(end, 2)}")
+        speech_detect_json.append({
+            'speaker': speaker,
+            'start': round(start, 2),
+            'end': round(end, 2)
+        })
 
-            ax.hlines(y=speaker, xmin=start, xmax=end, linewidth=5,
-                    color=speaker_colors[speaker])
+    cumulative_offset = end
 
-            print(f"Speaker {speaker}: Start={round(start, 2)}, End={round(end, 2)}")
-            speech_detect_json.append({'speaker':speaker,'start':round(start, 2), 'end':round(end, 2)})
+ax.set_xlabel("Time (s)")
+ax.set_ylabel("Speaker")
+ax.set_title("Speaker Diarization Timeline")
+plt.tight_layout()
+plt.show()
+```
 
-        # Update the offset for next audio clip
-        cumulative_offset = end  # end of the last segment in the current diarization
+## 3.3 Review transcriptions and audio
 
-    ax.set_xlabel("Time (s)")
-    ax.set_ylabel("Speaker")
-    ax.set_title("Speaker Diarization Timeline")
-    plt.tight_layout()
+Display the transcription, plot the waveforms, and play the audio.
+
+---
+Using pyaudio
+
+```python
+import matplotlib.pyplot as plt
+import numpy as np
+from IPython.display import Audio, display  # Added native notebook audio controls
+
+import pyaudio
+audio = pyaudio.PyAudio()
+output_device = audio.get_default_output_device_info()
+RATE = int(output_device['defaultSampleRate'])
+CHANNELS = int(output_device['maxInputChannels'])
+audio.terminate()
+
+# Loop through your speech segments
+for i, wave in enumerate(waveform_list):
+    # Convert data safely to a numpy array
+    wave_array = np.array(wave)
+    
+    # 1. Plot the waveform
+    plt.plot(wave_array)
     plt.show()
+    
+    # 2. Print metadata text
+    print(speech_list[i])
+    print(dia_list[i])
 
-    ```
+    # 3. Generate and display the HTML5 play button widget
+    audio_player = Audio(wave_array.flatten(), rate=16000)
+    display(audio_player)
+```
+---
+Using sounddevice
 
-5. Below displayed the text and plots of all sections in the video that is transcribed and play the audio. This is for your to verify the audio captured.
+```python
+import matplotlib.pyplot as plt
+import sounddevice as sd
 
+device_info = sd.query_devices(kind='output')
+RATE = int(device_info['default_samplerate'])
+CHANNELS = int(device_info['max_input_channels'])
+audio.terminate()
 
-    ```python
-    import matplotlib.pyplot as plt
-    import sounddevice as sd
+for i, wave in enumerate(waveform_list):
+    plt.plot(np.array(wave))
+    plt.show()
+    print(speech_list[i])
+    print(dia_list[i])
 
-    DEVICE_ID = 2
-    audio = pyaudio.PyAudio()
-    RATE = int(audio.get_device_info_by_index(DEVICE_ID)['defaultSampleRate'])
-    CHANNELS = int(audio.get_device_info_by_index(DEVICE_ID)['maxInputChannels'])
-    sample_rate = int(len(audio_data)*16000/RATE)
-    audio.terminate()
-
-    i=0
-    for wave in waveform_list:
-        plt.plot(np.array(wave))
-        plt.show()
-        print(speech_list[i])
-        print(dia_list[i])
-
-        sd.play(wave, 16000)
-        sd.wait()
-        i+=1
-
-    ```
+    sd.play(wave, 16000)
+    sd.wait()
+```
 
 # 4. Insert data into Elasticsearch NoSQL database and visualize in Kibana.
 
-1. Go to the server and start elasticsearch and kibana docker containers. 
+1. SSH into EC2 instance and start elasticsearch and kibana docker containers. 
 
-    ```docker start dev_es01```\
-    ```docker start dev_kib01```
+    ```bash
+    ssh -i "MyKeyPair.pem" ec2-user@<ip_address>
+    # stop kafka as the EC2 instance has limited resources
+    docker stop $(docker ps -aq -f "name=kafka")
+    # start elasticsearch
+    docker start dev_es01
+    # start kibana
+    docker start dev_kib01
+    ```
 
 2. Install elasticsearch in python
 
 
     ```python
-    # !pip3 install elasticsearch
+    # !python3 -m pip install elasticsearch
     ```
 
 
@@ -366,7 +382,7 @@ HfHubHTTPError: 401 Client Error: Unauthorized for url: https://huggingface.co/p
     ```
 
     ```python
-    # for those who are unable to run the diarization codes.
+    # Sample data for those who are unable to run the diarization codes.
     speech_detect_json = [{'speaker': 'SPEAKER_00', 'start': 4.27, 'end': 5.3},
      {'speaker': 'SPEAKER_00', 'start': 5.52, 'end': 7.37},
      {'speaker': 'SPEAKER_00', 'start': 8.47, 'end': 9.97},
@@ -389,27 +405,26 @@ HfHubHTTPError: 401 Client Error: Unauthorized for url: https://huggingface.co/p
      {'speaker': 'SPEAKER_00', 'start': 49.88, 'end': 59.82}]
     ```
 
-3. SSH into server.
+<!-- 3. Still in the EC2 instance, download the http_ca.crt from dev_es01 into ~/elasticsearch.
 
-    ```ssh -i "MyKeyPair.pem" ec2-user@<ip_address>```
+    ```bash
+    docker cp dev_es01:/usr/share/elasticsearch/config/certs/http_ca.crt .
+    ``` -->
 
-4. Still in the server, download the http_ca.crt from dev_es01 into ~/elasticsearch.
+3. In your local machine terminal or command line, copy the file `http_ca.crt` into your local machine.
 
-    ```docker cp dev_es01:/usr/share/elasticsearch/config/certs/http_ca.crt .```
+    ```bash
+    scp -i "MyKeyPair.pem" ec2-user@<ip_address>:./elasticsearch/http_ca.crt .
+    ```
 
-5. Exit the server. 
+4. Copy the cert to the appropriate location in your machine.
 
-6. In your local machine, SCP http_ca.crt into your local machine.
-
-    ```scp -i "MyKeyPair.pem" ec2-user@<ip_address>:./elasticsearch.http_ca.crt .```
-
-7. Copy the cert to the appropriate location in your machine.
-
-    In mac, ```cp ./http_ca.crt /etc/ssl/certs/```\
-    In Windows, ```cp ./http_ca.crt C:\\.certs```
-
-
-
+    ```bash
+    # In macOS
+    mv ./http_ca.crt /etc/ssl/certs/
+    # In Windows
+    cp ./http_ca.crt C:\\.certs
+    ```
 
     ```python
     from elasticsearch import Elasticsearch
@@ -431,8 +446,8 @@ HfHubHTTPError: 401 Client Error: Unauthorized for url: https://huggingface.co/p
         i+=1
     ```
 
-8. Screen capture to show that data is shown in Kibana > Display. Save the screen capture and submit.
+5. Screen capture to show that data is shown in Kibana > Dashboard. Save the screen capture and submit.
 
-9. As an optional challenge, implement a real-time system to detect different speakers that reflects the changes in a dasboard in Kibana. Submit a short 10 seconds video that demonstrates this. (Optional)
+6. As an optional challenge, implement a real-time system to detect different speakers that reflects the changes in a dasboard in Kibana. Submit a short 10 seconds video that demonstrates this. (Optional)
 
 ~ The End ~

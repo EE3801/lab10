@@ -1,97 +1,122 @@
-# Lab 10.1 Stream Data Pipeline II - Overview and Producer 
+# Lab 10.1 Stream Data Pipeline II - Overview and Producer
 
-- Scenario: Streaming audio \
-    Stream in audio, process, calling a machine learning classification model and save the data for reporting.
+- Scenario: Streaming audio\
+  Stream audio, process it with a machine learning model, and save the data for reporting.
 
-Create a new jupyter notebook file "stream_data_pipeline_2_producer.ipynb".
-
+---
+Create a new Jupyter notebook file named `stream_data_pipeline_2_producer.ipynb`. 
 
 ```python
 import os
 home_directory = os.path.expanduser("~")
-os.chdir(home_directory+'/Documents/projects/ee3801')
+os.chdir(os.path.join(home_directory, "Documents", "projects", "ee3801"))
 ```
 
-# 1. Scenario: Streaming audio 
+# 1. Scenario: Streaming audio
 
-The company would like to build an in-house automatic speech transcribing tool. We record the streams of audio from one computer and another computer can receive this audio and transcribe in real-time. The system stream in audio, transcribe it using Open AI's whisper model and transcribed text is saved for reporting in real-time. 
+The company wants to build an in-house speech transcription tool to be shown at a conference. One device records audio of the speaker remotely, another computer receives the audio and transcribes the audio in real time. The system should stream audio, transcribe it with OpenAI Whisper, and display the transcribed text in real-time.
 
-# 1.1 Single stream audio data auto-transcription
+# 1.1 Single-stream audio auto-transcription
 
-In the previous lab exercise, you have observed missing words lost in recording and transcription. In this lab, you will attempt to capture all audio streams and transcribe to text. Take note of the time taken to read, write and transcribe the audio.
+In the previous lab exercise, you observed missing words in recording and transcription. In this lab, you will attempt to capture complete audio streams and transcribe them more reliably. Note the time taken to read, write, and transcribe the audio.
 
-You will need two notebook to run concurrently.
-- Producer - codes below
-- Consumer - stream_data_pipeline_2_consumer.ipynb
+You need two jupyter notebooks (.ipynb) files running concurrently:
+- Producer: this notebook `stream_data_pipeline_2_producer.ipynb`
+- Consumer: `stream_data_pipeline_2_consumer.ipynb`
 
-1. SSH into the server.
+1. Go to AWS Console to start your EC2 instance. SSH into the EC2 instance:
 
-    ```ssh -i "MyKeyPair.pem" ec2-user@<ip_address>```
+    ```bash
+    ssh -i "MyKeyPair.pem" ec2-user@<ip_address>
+    ```
 
-2. Ensure all kafka containers are started.
+2. Start the Kafka containers:
 
-    ```docker start $(docker ps -aq -f "name=kafka")```
+    ```bash
+    sudo service docker start
+    # stop all containers
+    docker stop $(docker ps -q)
+    # start all kafka containers
+    docker start $(docker ps -aq -f "name=kafka")
+    ```
 
-3. Check if all kafka containers are started.
+3. Verify the Kafka containers are running:
 
-    ```docker ps -a```
+    ```bash
+    # list all active docker containers
+    docker ps -a
+    ```
 
-    Note: If your AWS EC2 instance public_ip_address is changed, you will need to stop and remove all kafka containers. Create them again and create a topic too. Follow these steps below:\
-    
-    ```docker stop $(docker ps -q -f "name=kafka”)```
-    
-    ```docker rm $(docker ps -aq -f "name=kafka")```
-    
-    ```cd ~/dev_kafka```
-    
-    ```IMAGE=apache/kafka:latest PUBLIC_IP_ADDRESS=<ip_address> docker-compose up```
-    
-    <!--```export PUBLIC_IP_ADDRESS=<ip_address>```-->
-    
-    ```docker restart $(docker ps -aq -f "name=kafka")```
-    
-    ```docker exec -it kafka-1 /bin/bash```
-    
-    ```/opt/kafka/bin/kafka-topics.sh --create --topic dataengineering --replication-factor 2 --bootstrap-server localhost:9092```
-    
-    ```/opt/kafka/bin/kafka-topics.sh --describe --topic dataengineering --bootstrap-server localhost:9092```
-    
-    ```exit```
-    
-    Test out the container using different terminals logged in to server.\
-    ```docker exec -it kafka-1 /opt/kafka/bin/kafka-console-producer.sh --topic dataengineering --bootstrap-server localhost:9092```
-    
-    ```docker exec -it kafka-1 /opt/kafka/bin/kafka-console-consumer.sh --topic dataengineering --from-beginning --bootstrap-server localhost:9092```
+    If your EC2 instance public IP address changed, stop and remove the Kafka containers, recreate them, and recreate the topic:
+
+    ```bash
+    # stop all kafka containers
+    docker stop $(docker ps -q -f "name=kafka")
+    # remove all kafka containers
+    docker rm $(docker ps -aq -f "name=kafka")
+    # change directory
+    cd ~/dev_kafka
+    # create kafka containers
+    IMAGE=apache/kafka:latest PUBLIC_IP_ADDRESS=<ip_address> docker-compose up
+    ```
+
+    Then recreate the topic:
+
+    ```bash
+    # restart all kafka containers
+    docker restart $(docker ps -aq -f "name=kafka")
+    # enter kafka-1 container environment
+    docker exec -it kafka-1 /bin/bash
+    # create topic
+    /opt/kafka/bin/kafka-topics.sh --create --topic dataengineering --replication-factor 2 --bootstrap-server localhost:9092
+    # view topics
+    /opt/kafka/bin/kafka-topics.sh --describe --topic dataengineering --bootstrap-server localhost:9092
+    # exit kafka-1 container
+    exit
+    ```
+
+    Test the producer and consumer in separate server terminals:
+
+    ```bash
+    # ssh into EC2 instance and start producer
+    docker exec -it kafka-1 /opt/kafka/bin/kafka-console-producer.sh --topic dataengineering --bootstrap-server localhost:9092
+    # ssh into EC2 instance and start consumer
+    docker exec -it kafka-1 /opt/kafka/bin/kafka-console-consumer.sh --topic dataengineering --from-beginning --bootstrap-server localhost:9092
+    ```
 
 
 
+4. Install software to capture audio from your machine.
 
-4. Install softwares to capture audio from your machine.
+    ```python
+    # Install Python packages
+    # !python3 -m pip install --upgrade pip
+    # !python3 -m pip install kafka-python
 
+    # For Windows users (WSL)
+    # !sudo add-apt-repository ppa:therealkenc/wsl-pulseaudio
+    # !sudo apt update
+    # !sudo apt install pulseaudio
+    # !pip3 install pyaudio
 
-```python
-# # install python packages
-# !python3 -m pip install --upgrade pip
-# !python3 -m pip install kafka-python
+    # For GNU/Linux users
+    # !sudo apt install python3-pyaudio
 
-# # for mac users
-# !brew install portaudio 
-# !pip3 install pyaudio
+    # For Apple Silicon users
+    # !arch -arm64 /opt/homebrew/bin/brew install portaudio
+    # !python3 -m pip cache purge
+    # !python3 -m pip install pyaudio 
+    # !python3 -m pip install scipy
 
-# # for windows users
-# # in wsl
-# !sudo add-apt-repository ppa:therealkenc/wsl-pulseaudio sudo apt update
-# !sudo apt install pulseaudio
-# !pip3 install pyaudio
+    # For Windows users
+    # !python3 -m pip install sounddevice
+    # !python3 -m pip install pyaudio
+    # !python3 -m pip install scipy
+    ```
 
-# # for GNU/Linux users
-# !sudo apt install python3-pyaudio
-```
+# 1.2 Stream audio input
 
-# 1.2 Stream in audio 
-
-1. Check default audio input.
-
+1. Check the default audio input device. Copy and paste the codes into `stream_data_pipeline_2_producer.ipynb`:
 
     ```python
     import pyaudio
@@ -113,62 +138,60 @@ You will need two notebook to run concurrently.
 
     except OSError as e:
         print(f"Error getting default input device info: {e}")
-        print("This might happen if no default input device is available or properly configured.")
-
+        print("This may happen if no default input device is available or properly configured.")
     finally:
         # Terminate PyAudio
         p.terminate()
     ```
 
-2. List down all audio in your machine.
-
+2. List all audio devices on your machine:
 
     ```python
     # Testing audio setup in this device
     import pyaudio
 
     audio = pyaudio.PyAudio()
-    print("audio.get_device_count():",audio.get_device_count())
+    print("audio.get_device_count():", audio.get_device_count())
     for i in range(audio.get_device_count()):
         print(audio.get_device_info_by_index(i))
 
     audio.terminate()
     ```
 
-3. Choose the input and output audio in your machine. Take note of the index number of the audio input or output.
-
+3. Select the input and output devices, and note their index numbers:
 
     ```python
     # This is to determine which input audio and output audio you will use.
     # Explore and find the right index to use for input and output in your device.
     audio = pyaudio.PyAudio()
-    input = audio.get_default_input_device_info()
-    print("Choosing my input audio: 'name':",input["name"],",'maxInputChannels':",input["maxInputChannels"],",'defaultSampleRate':",input["defaultSampleRate"])
-    print("Choosing my output audio:",audio.get_device_info_by_index(2))
+    input_device = audio.get_default_input_device_info()
+    print("Selected input audio:", input_device["name"])
+    print("  maxInputChannels:", input_device["maxInputChannels"])
+    print("  defaultSampleRate:", input_device["defaultSampleRate"])
+    print("Selected output audio:", audio.get_device_info_by_index(2))
     audio.terminate()
     ```
 
-# 2. Read from the script as you are recording
+# 2. Read from the script while recording
 
-* Producers are fairly straightforward – they send messages to a topic and partition, maybe request an acknowledgment, retry if a message fails – or not – and continue. Consumers, however, can be a little more complicated.
+```
+- Producers are fairly straightforward: they send messages to a topic and partition, may request acknowledgments, may retry if a message fails, and then continue.
 
-* Consumers read messages from a topic. Consumers run in a poll loop that runs indefinitely waiting for messages. Consumers can read from the beginning – they will start at the first message in the topic and read the entire history. Once caught up, the consumer will wait for new messages.
+- Consumers are more complex: they read messages from a topic, run in a poll loop that waits for new messages, and can start from the beginning of the topic to read the entire history. Once caught up, the consumer waits for new messages.
+```
 
+# 3. Capture every sentence in a paragraph
 
-# 3. Capture every sentence in a paragraph 
-Using the device's audio capture the audio, record the sentence, send the audio data using Producer to a topic.
+Use your device to capture audio, record each sentence, and send the audio data to Kafka.
 
-# 3.1 Initialise Producer
+# 3.1 Initialize Producer
 
-1. Replace the ```<ip_address>``` with your AWS EC2 instance public ip address.
-
-2. The codes below is the Kafka Producer that will send data to the public id address. If successful it will print the topic, partition, offset information. If there is an error, it will be displayed as well. 
-
+1. Replace `<ip_address>` with your AWS EC2 instance public IP address.
+2. The code below creates a Kafka producer. If successful, it prints topic, partition, and offset information.
 
     ```python
     # kafka-python Producer
     from kafka import KafkaProducer
-    from kafka.errors import KafkaError
 
     public_ip_address = "<ip_address>"
 
@@ -181,27 +204,20 @@ Using the device's audio capture the audio, record the sentence, send the audio 
         print(record_metadata.offset)
 
     def on_send_error(excp):
-        print('I am an errback', exc_info=excp)
-        # handle exception
-
+        print('Send error:', excp)
+        # Handle the exception here.
     ```
 
 # 3.2 Capture audio and send data through Producer
 
-1. The codes below captures audio data from the default audio input device.
-
-2. The audio data is then send using the Kafka Producer to the topic ```dataengineering```.
-
+1. The code below captures audio from the default input device.
+2. It sends the raw audio data to the Kafka topic `dataengineering`.
 
     ```python
     # Single thread audio
 
     import pyaudio
-    import wave
-    import numpy as np
     from datetime import datetime
-    import whisper
-    import sys
 
     FORMAT = pyaudio.paInt16
     CHUNK = 1024
@@ -209,12 +225,13 @@ Using the device's audio capture the audio, record the sentence, send the audio 
     # DEVICE_ID = 4
 
     audio = pyaudio.PyAudio()
-    input = audio.get_default_input_device_info()
-    RATE = int(input['defaultSampleRate'])
-    CHANNELS = int(input['maxInputChannels'])
-    INDEX = int(input['index'])
+    input_device = audio.get_default_input_device_info()
+    RATE = int(input_device['defaultSampleRate'])
+    CHANNELS = int(input_device['maxInputChannels'])
+    INDEX = int(input_device['index'])
 
-    audio = pyaudio.PyAudio()
+    start_time = datetime.now()
+
     stream = audio.open(
         format=FORMAT,
         channels=CHANNELS,
@@ -224,75 +241,68 @@ Using the device's audio capture the audio, record the sentence, send the audio 
         input_device_index=INDEX
     )
 
-    start_time = datetime.now()
-
     try:
         while True:
             before_time = datetime.now()
             frames = []
-            for i in range(0, int(RATE / CHUNK * RECORD_SECONDS)):
-                data = stream.read(CHUNK, exception_on_overflow = False)
+            for _ in range(int(RATE / CHUNK * RECORD_SECONDS)):
+                data = stream.read(CHUNK, exception_on_overflow=False)
                 frames.append(data)
             raw_data = b''.join(frames)
 
             # produce asynchronously with callbacks, data sent to topic dataengineering.
-            producer.send('dataengineering', raw_data, key="audio".encode('utf-8'))\
-                    .add_callback(on_send_success)\
-                    .add_errback(on_send_error)
-            print("%s audio_duration (s): %s" % (datetime.now().strftime("%d/%m/%Y, %H:%M:%S"), (datetime.now() - before_time).seconds))
+            producer.send('dataengineering', raw_data, key=b'audio') \
+                .add_callback(on_send_success) \
+                .add_errback(on_send_error)
+
+            print("%s audio_duration (s): %s" % (
+                datetime.now().strftime("%d/%m/%Y, %H:%M:%S"),
+                (datetime.now() - before_time).seconds
+            ))
 
             # block until all async messages are sent
             producer.flush()
 
-            if (datetime.now() - start_time).seconds > 60: #exit program after 1min
-                stream.stop_stream()
-                stream.close()
-                audio.terminate()
-                print("* Exit program after 1min *")
+            # exit program after 1 min
+            if (datetime.now() - start_time).seconds > 60: 
+                print("* Exit program after 1 min *")
                 break
-            
-    except KeyboardInterrupt as kie:
+
+    except KeyboardInterrupt:
         print("* Program terminated by user *")
-        stream.stop_stream()
-        stream.close()
-        audio.terminate()
     except Exception as e:
-        # print("Exception:", e)
-        if stream!=None:
+        print("Exception:", e)
+    finally:
+        if stream is not None:
             stream.stop_stream()
             stream.close()
             audio.terminate()
-    # sys.exit(0)
-    # exit
-
-
     ```
 
-3. Start the Kafka Consumer (stream_data_pipeline_2_consumer.ipynb) to receive text from this Kafka Producer.
+3. Open the instructions in [Lab 10 Stream Data Pipeline II Consumer](./lab10_2%20stream_data_pipeline_2_consumer.md).
 
-4. What did you observe from the messages sent? Submit your findings.
+4. Start the Kafka consumer notebook `stream_data_pipeline_2_consumer.ipynb` to receive the audio data.
+
+5. What did you observe from the messages sent? Submit your findings.
 
 # Conclusion
 
-1. You have successfully streamed audio data from your device from a paragraph, directly and reliably transcribed the audio to text.
+1. You have streamed audio data from your device and sent it to another computer.
+2. You have used Kafka to transmit audio data for remote processing.
 
-2. You have sent the audio data from one computer to another computer to be read, processed and inserted into a NoSQL database.
+**Questions to ponder**
 
-<b>Questions to ponder</b>
-1. Which principle in the good data achitecture does Kafka fulfill?
-2. Can Microsoft Power App exercises do stream processing?
-3. What is the advantages and disadvantages of using stream processing?
+1. Which principle of good data architecture does Kafka fulfill?
+2. Can Microsoft Power Apps perform stream processing?
+3. What are the advantages and disadvantages of stream processing?
 
 # Submissions next Wed 9pm (29 Oct 2025)  
 
-Submit your ipynb as a pdf. Save your ipynb as a html file, open in browser and print as a pdf. Include in your submission:
+Submit your notebook as a PDF. Save your notebook as an HTML file, open it in a browser, and print it as a PDF.
 
-    Section 3.2
-
-    Answer the questions to ponder.
-
-    In total, 2 pdfs of your stream_data_pipeline_2_producer.ipynb and stream_data_pipeline_2_consumer.ipynb
-
-    In lab10_2, section 4, step 8, a screen capture to show the data is inserted into Kiabana > Display.
+Include in your submission:
+- In lab10_1 Section 3.2 output, step 5 and Answers to the questions to ponder
+- In `lab10_2`, section 4 step 6 and 7, include a screenshot showing the data inserted into Kibana > Display.
+- The submission should consists of two PDFs: `stream_data_pipeline_2_producer.ipynb` and `stream_data_pipeline_2_consumer.ipynb`
 
 ~ The End ~
