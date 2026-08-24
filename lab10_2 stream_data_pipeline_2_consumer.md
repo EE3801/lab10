@@ -40,6 +40,8 @@ model = whisper.load_model("medium.en")
 
 The consumer listens for audio messages on the `dataengineering` topic, transcribes them with Whisper, and prints the results.
 
+## Using PyAudio
+
 ```python
 import pyaudio
 
@@ -129,6 +131,83 @@ except KeyboardInterrupt:
 finally:
     consumer.close()
     
+```
+
+## Using sounddevice
+```python
+import sounddevice as sd
+
+FORMAT = sd.default.dtype[0]
+RECORD_SECONDS = 5
+
+input_device = sd.query_devices(kind='input')
+RATE = int(input_device['default_samplerate'])
+CHUNK = int(RATE * RECORD_SECONDS)
+CHANNELS = int(input_device['max_input_channels'])
+INDEX = int(input_device['index'])
+
+# kafka-python Consumer
+from kafka import KafkaConsumer
+import json
+import numpy as np
+from datetime import datetime
+import sys
+from scipy.signal import resample
+
+public_ip_address = "<ip_address>"
+
+# To consume latest messages and auto-commit offsets
+consumer = KafkaConsumer('dataengineering',
+                        #  group_id='python-consumer',
+                         bootstrap_servers=[public_ip_address+':29092',public_ip_address+':39092',public_ip_address+':49092'])
+                        #  consumer_timeout_ms=1000)
+                         #value_deserializer=lambda m: json.loads(m.decode('utf-8')))
+
+start_time = datetime.now()
+
+compiled_message = []
+
+try: 
+    for message in consumer:
+        begin_time = datetime.now()
+        # message value and key are raw bytes -- decode if necessary!
+        # e.g., for unicode: `message.value.decode('utf-8')`
+        print("%s %s:%d:%d: key=%s" % (datetime.now().strftime("%d/%m/%Y, %H:%M:%S"), message.topic, message.partition,
+                                            message.offset, message.key.decode('utf-8')))
+
+        if message.key.decode('utf-8')=="text":
+            print("message=%s" % message.value.decode('utf-8'))
+
+        if message.key.decode('utf-8').startswith("audio"):
+            audio_data = np.frombuffer(message.value, dtype=np.float32).flatten().astype(np.float32) 
+            #  # Convert multi-channel (Stereo) to Mono
+            # if CHANNELS > 1:
+            #     audio_data = audio_data.mean(axis=1)
+            # else:
+            #     audio_data = audio_data.flatten()
+            # # Ensure the data type is float32 (sounddevice usually returns float32 by default)
+            # audio_data = audio_data.astype(np.float32)
+
+            target_len = int(len(audio_data) * 16000 / RATE) # Calculate how many total samples the audio array needs to be when changed to 16,000Hz
+            audio_data = resample(audio_data, num=target_len) # Downsample the audio array to 16,000Hz (Whisper models are specifically trained on 16kHz audio)
+            audio_data = whisper.pad_or_trim(audio_data) # Enforce Whisper's strict input rule: pad short audio or cut long audio to exactly 30 seconds
+            text = whisper.transcribe(model, audio_data, fp16=False)["text"]
+            compiled_message.append(text)
+            print("transcribed.message=%s, transcribed.duration=%s" % (text, 
+                                                                       str(datetime.now()-before_transcribe_time)))
+
+        if (datetime.now()-start_time).seconds > 60: # listen for 1 minute (60 seconds)
+            consumer.close()
+            print("**********")
+            print("* Ended listening for 1 min *")
+            print("compiled.message=%s" % (' '.join(compiled_message)))
+            break
+except KeyboardInterrupt as kie:
+    consumer.close()
+    print("**********")
+    print("* Program terminated by user *")
+    print("compiled.message=%s" % (' '.join(compiled_message)))
+
 ```
 
 # 3. Transcribe audio and identify speakers
@@ -300,8 +379,7 @@ plt.show()
 
 Display the transcription, plot the waveforms, and play the audio.
 
----
-Using pyaudio
+## Using pyaudio
 
 ```python
 import matplotlib.pyplot as plt
