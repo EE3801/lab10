@@ -134,6 +134,10 @@ finally:
 ```
 
 ## Using sounddevice
+
+3. Replace <ip_address> with your AWS EC2 public IP address.
+
+4. Use the following code to create the Kafka consumer:
 ```python
 import sounddevice as sd
 
