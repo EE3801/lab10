@@ -27,7 +27,10 @@ You need two jupyter notebooks (.ipynb) files running concurrently:
 1. Go to AWS Console to start your EC2 instance. SSH into the EC2 instance:
 
     ```bash
+    # for MacOS
     ssh -i "MyKeyPair.pem" ec2-user@<ip_address>
+    # for Windows
+    ssh -i ~/"MyKeyPair.pem" ec2-user@<ip_address>
     ```
 
 2. Start the Kafka containers:
@@ -92,15 +95,6 @@ You need two jupyter notebooks (.ipynb) files running concurrently:
     # Install Python packages
     # !python3 -m pip install --upgrade pip
     # !python3 -m pip install kafka-python
-
-    # For Windows users (WSL)
-    # !sudo add-apt-repository ppa:therealkenc/wsl-pulseaudio
-    # !sudo apt update
-    # !sudo apt install pulseaudio
-    # !pip3 install pyaudio
-
-    # For GNU/Linux users
-    # !sudo apt install python3-pyaudio
 
     # For Apple Silicon users
     # !arch -arm64 /opt/homebrew/bin/brew install portaudio
@@ -375,7 +369,7 @@ Use your device to capture audio, record each sentence, and send the audio data 
 2. Can Microsoft Power Apps perform stream processing?
 3. What are the advantages and disadvantages of stream processing?
 
-# Submissions next Wed 9pm (29 Oct 2025)  
+# Submissions next Wed 9pm (28 Oct)  
 
 Submit your notebook as a PDF. Save your notebook as an HTML file, open it in a browser, and print it as a PDF.
 
