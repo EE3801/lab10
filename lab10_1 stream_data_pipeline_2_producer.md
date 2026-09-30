@@ -4,6 +4,8 @@
   Stream audio, process it with a machine learning model, and save the data for reporting.
 
 ---
+Note: When copying the codes to your notebook, select all and ```Shift+Tab``` to remove leading spaces.
+
 Create a new Jupyter notebook file named `stream_data_pipeline_2_producer.ipynb`. 
 
 ```python

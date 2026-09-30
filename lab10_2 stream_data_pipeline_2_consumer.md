@@ -3,6 +3,8 @@
 - Scenario: Streaming audio\
   Stream audio, process it with a machine learning model, save the data, and visualize it for reporting.
 
+Note: When copying the codes to your notebook, select all and ```Shift+Tab``` to remove leading spaces.
+
 Create a new Jupyter notebook file named `stream_data_pipeline_2_consumer.ipynb`.
 
 ```python
