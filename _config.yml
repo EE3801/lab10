@@ -5,15 +5,15 @@ nav_external_links:
   - title: Producer - 1. Scenario Streaming audio
     url: lab10_1%20stream_data_pipeline_2_producer.html#1-scenario-streaming-audio
   - title: Producer - 1.1 Single stream audio data auto-transcription
-    url: lab10_1%20stream_data_pipeline_2_producer.html#11-single-stream-audio-data-auto-transcription
+    url: lab10_1%20stream_data_pipeline_2_producer.html#11-single-stream-audio-auto-transcription
   - title: Producer - 1.2 Stream in audio
-    url: lab10_1%20stream_data_pipeline_2_producer.html#12-stream-in-audio
+    url: lab10_1%20stream_data_pipeline_2_producer.html#12-stream-audio-input
   - title: Producer - 2. Read from the script as you are recording
-    url: lab10_1%20stream_data_pipeline_2_producer.html#2-read-from-the-script-as-you-are-recording
+    url: lab10_1%20stream_data_pipeline_2_producer.html#2-read-from-the-script-while-recording
   - title: Producer - 3. Capture every sentence in a paragraph
     url: lab10_1%20stream_data_pipeline_2_producer.html#3-capture-every-sentence-in-a-paragraph
   - title: Producer - 3.1 Initialise Producer
-    url: lab10_1%20stream_data_pipeline_2_producer.html#31-initialise-producer
+    url: lab10_1%20stream_data_pipeline_2_producer.html#31-initialize-producer
   - title: Producer - 3.2 Capture audio and send data through Producer
     url: lab10_1%20stream_data_pipeline_2_producer.html#32-capture-audio-and-send-data-through-producer
   - title: Producer - Conclusion
@@ -23,7 +23,7 @@ nav_external_links:
   - title: Consumer - 2. Consume audio stream and transcribe
     url: lab10_2%20stream_data_pipeline_2_consumer.html#2-consume-audio-stream-and-transcribe
   - title: Consumer - 2.1 Initialise Consumer
-    url: lab10_2%20stream_data_pipeline_2_consumer.html#21-initialise-consumer
+    url: lab10_2%20stream_data_pipeline_2_consumer.html#21-initialize-the-consumer
   - title: Consumer - 3. Consume audio stream, transcribe and identify number of speakers
     url: lab10_2%20stream_data_pipeline_2_consumer.html#3-consume-audio-stream-transcribe-and-identify-number-of-speakers
   - title: Consumer - 3.1 Detect speakers
