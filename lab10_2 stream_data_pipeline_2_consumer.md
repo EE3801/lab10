@@ -230,233 +230,233 @@ This section uses speaker diarization to identify who is speaking.
 4. Before running the code below, play a recording with multiple speakers and run the producer code in Lab 10.1 section 3.2.
 5. You can use your own audio or this youtube link on <a href="https://youtu.be/JOh-9iaPcGU?si=LDDKfy4bzLVxLaRH">No.1 Performance Psychologist: The Secret to High Performance and Excellence</a>. 
 
-    ```python
-    # !python3 -m pip install --upgrade pip
-    # !python3 -m pip install torch torchvision torchaudio
+```python
+# !python3 -m pip install --upgrade pip
+# !python3 -m pip install torch torchvision torchaudio
 
-    # For macOS Apple Silicon:
-    # !python3 -m pip install --pre torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/nightly/cpu
+# For macOS Apple Silicon:
+# !python3 -m pip install --pre torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/nightly/cpu
 
-    # !python3 -m pip install -U pyannote.audio
-    ```
-    ## Using PyAudio
+# !python3 -m pip install -U pyannote.audio
+```
+### Using PyAudio
 
-    ```python
-    # diarization - https://github.com/pyannote/pyannote-audio/tree/develop?tab=readme-ov-file
-    from pyannote.audio import Pipeline
-    import torchaudio
-    import torch
-    import pyaudio
-    from scipy.signal import resample
+```python
+# diarization - https://github.com/pyannote/pyannote-audio/tree/develop?tab=readme-ov-file
+from pyannote.audio import Pipeline
+import torchaudio
+import torch
+import pyaudio
+from scipy.signal import resample
 
-    # DEVICE_ID = 4
-    audio = pyaudio.PyAudio()
-    input = audio.get_default_input_device_info()
-    RATE = int(input['defaultSampleRate'])
-    CHANNELS = int(input['maxInputChannels'])
-    audio.terminate()
+# DEVICE_ID = 4
+audio = pyaudio.PyAudio()
+input = audio.get_default_input_device_info()
+RATE = int(input['defaultSampleRate'])
+CHANNELS = int(input['maxInputChannels'])
+audio.terminate()
 
-    speaker_list = []
-    waveform_list = []
-    speech_list = []
-    time_speech_list = []
-    dia_list = []
+speaker_list = []
+waveform_list = []
+speech_list = []
+time_speech_list = []
+dia_list = []
 
-    def detect_speakers(audio_data_):
-        pipeline = Pipeline.from_pretrained(
-            "pyannote/speaker-diarization-3.1",
-            token="<huggingface_token_for_pyannote_audio>"
-        )
-
-        pipeline.to(torch.device("mps"))  # Use CPU if MPS is unavailable.
-        this_waveform = torch.from_numpy(np.array([audio_data_])).float().to(device=torch.device('mps'))
-
-        # call the model to detect speakers in the audio
-        diarization = pipeline({"waveform": this_waveform, "sample_rate": 16000})
-
-        for turn, speaker in diarization.speaker_diarization:
-            print(f"start={turn.start:.1f}s stop={turn.end:.1f}s speaker_{speaker}")
-            speaker_list.append(speaker)
-
-        return diarization
-
-    from kafka import KafkaConsumer
-    from datetime import datetime
-
-    consumer = KafkaConsumer(
-        'dataengineering',
-        bootstrap_servers=[
-            public_ip_address + ':29092',
-            public_ip_address + ':39092',
-            public_ip_address + ':49092'
-        ]
+def detect_speakers(audio_data_):
+    pipeline = Pipeline.from_pretrained(
+        "pyannote/speaker-diarization-3.1",
+        token="<huggingface_token_for_pyannote_audio>"
     )
 
-    start_time = datetime.now()
+    pipeline.to(torch.device("mps"))  # Use CPU if MPS is unavailable.
+    this_waveform = torch.from_numpy(np.array([audio_data_])).float().to(device=torch.device('mps'))
 
-    try:
-        for message in consumer:
-            print("%s %s:%d:%d: key=%s" % (
-                datetime.now().strftime("%d/%m/%Y, %H:%M:%S"),
-                message.topic,
-                message.partition,
-                message.offset,
-                message.key.decode('utf-8')
+    # call the model to detect speakers in the audio
+    diarization = pipeline({"waveform": this_waveform, "sample_rate": 16000})
+
+    for turn, speaker in diarization.speaker_diarization:
+        print(f"start={turn.start:.1f}s stop={turn.end:.1f}s speaker_{speaker}")
+        speaker_list.append(speaker)
+
+    return diarization
+
+from kafka import KafkaConsumer
+from datetime import datetime
+
+consumer = KafkaConsumer(
+    'dataengineering',
+    bootstrap_servers=[
+        public_ip_address + ':29092',
+        public_ip_address + ':39092',
+        public_ip_address + ':49092'
+    ]
+)
+
+start_time = datetime.now()
+
+try:
+    for message in consumer:
+        print("%s %s:%d:%d: key=%s" % (
+            datetime.now().strftime("%d/%m/%Y, %H:%M:%S"),
+            message.topic,
+            message.partition,
+            message.offset,
+            message.key.decode('utf-8')
+        ))
+
+        if message.key.decode('utf-8') == "text":
+            print("message=%s" % message.value.decode('utf-8'))
+
+        if message.key.decode('utf-8') == "audio":
+            audio_data = np.frombuffer(message.value, dtype=np.int16).flatten().astype(np.float32)
+            if CHANNELS > 1:
+                audio_data = audio_data.reshape((-1, CHANNELS))
+                audio_data = audio_data.mean(axis=1)
+            audio_data = audio_data / 32768.0
+            audio_data = whisper.pad_or_trim(audio_data)
+            before_transcribe_time = datetime.now()
+            sample_rate = int(len(audio_data) * 16000 / RATE)
+            audio_data = resample(audio_data, num=sample_rate)
+            text = whisper.transcribe(model, audio_data, fp16=False)["text"]
+            speech_list.append(text)
+            time_speech_list.append(datetime.now())
+            print("transcribed.message=%s, transcribed.duration=%s" % (
+                text,
+                str(datetime.now() - before_transcribe_time)
             ))
 
-            if message.key.decode('utf-8') == "text":
-                print("message=%s" % message.value.decode('utf-8'))
+            waveform_list.append(audio_data)
+            dia = detect_speakers(audio_data)
+            dia_list.append(dia)
+            print("Number of speakers detected:", len(list(dict.fromkeys(speaker_list))))
 
-            if message.key.decode('utf-8') == "audio":
-                audio_data = np.frombuffer(message.value, dtype=np.int16).flatten().astype(np.float32)
-                if CHANNELS > 1:
-                    audio_data = audio_data.reshape((-1, CHANNELS))
-                    audio_data = audio_data.mean(axis=1)
-                audio_data = audio_data / 32768.0
-                audio_data = whisper.pad_or_trim(audio_data)
-                before_transcribe_time = datetime.now()
-                sample_rate = int(len(audio_data) * 16000 / RATE)
-                audio_data = resample(audio_data, num=sample_rate)
-                text = whisper.transcribe(model, audio_data, fp16=False)["text"]
-                speech_list.append(text)
-                time_speech_list.append(datetime.now())
-                print("transcribed.message=%s, transcribed.duration=%s" % (
-                    text,
-                    str(datetime.now() - before_transcribe_time)
-                ))
+        if (datetime.now() - start_time).seconds > 60:
+            print("* Ended listening for 1 min *")
+            break
+except KeyboardInterrupt:
+    print("* Program terminated by user *")
+finally:
+    consumer.close()
+    
+```
 
-                waveform_list.append(audio_data)
-                dia = detect_speakers(audio_data)
-                dia_list.append(dia)
-                print("Number of speakers detected:", len(list(dict.fromkeys(speaker_list))))
+### Using sounddevice
+```python
+### diarization - https://github.com/pyannote/pyannote-audio/tree/develop?tab=readme-ov-file
+from pyannote.audio import Pipeline
+import torchaudio
+import torch
+import sounddevice as sd
+from scipy.signal import resample
 
-            if (datetime.now() - start_time).seconds > 60:
-                print("* Ended listening for 1 min *")
-                break
-    except KeyboardInterrupt:
-        print("* Program terminated by user *")
-    finally:
-        consumer.close()
-        
-    ```
+FORMAT = sd.default.dtype[0]
+RECORD_SECONDS = 5
 
-    ## Using sounddevice
-    ```python
-    ### diarization - https://github.com/pyannote/pyannote-audio/tree/develop?tab=readme-ov-file
-    from pyannote.audio import Pipeline
-    import torchaudio
-    import torch
-    import sounddevice as sd
-    from scipy.signal import resample
+input_device = sd.query_devices(kind='input')
+RATE = int(input_device['default_samplerate'])
+CHUNK = int(RATE * RECORD_SECONDS)
+CHANNELS = int(input_device['max_input_channels'])
+INDEX = int(input_device['index'])
 
-    FORMAT = sd.default.dtype[0]
-    RECORD_SECONDS = 5
+speaker_list = []
+waveform_list = []
+speech_list = []
+time_speech_list = []
+dia_list = []
 
-    input_device = sd.query_devices(kind='input')
-    RATE = int(input_device['default_samplerate'])
-    CHUNK = int(RATE * RECORD_SECONDS)
-    CHANNELS = int(input_device['max_input_channels'])
-    INDEX = int(input_device['index'])
+def detect_speakers(audio_data_):
+    pipeline = Pipeline.from_pretrained(
+        "pyannote/speaker-diarization-3.1",
+        token="<huggingface_token_for_pyannote_audio>")
 
-    speaker_list = []
-    waveform_list = []
-    speech_list = []
-    time_speech_list = []
-    dia_list = []
+    # send pipeline to GPU (when available)
+    pipeline.to(torch.device("cpu")) #cpu
 
-    def detect_speakers(audio_data_):
-        pipeline = Pipeline.from_pretrained(
-            "pyannote/speaker-diarization-3.1",
-            token="<huggingface_token_for_pyannote_audio>")
+    this_waveform = torch.from_numpy(np.array([audio_data_])).float().to(device=torch.device('cpu')) #cpu
 
-        # send pipeline to GPU (when available)
-        pipeline.to(torch.device("cpu")) #cpu
+    # call the model to detect speakers in the audio data
+    diarization = pipeline({"waveform": this_waveform, "sample_rate": 16000})
 
-        this_waveform = torch.from_numpy(np.array([audio_data_])).float().to(device=torch.device('cpu')) #cpu
+    # print the result
+    # for turn, _, speaker in diarization.itertracks(yield_label=True):
+    for turn, speaker in diarization.speaker_diarization:
+        start=f"{turn.start:.1f}"
+        end=f"{turn.end:.1f}"
+        print(f"start={turn.start:.1f}s stop={turn.end:.1f}s speaker_{speaker}")
+        speaker_list.append(speaker)
+    
+    return diarization
 
-        # call the model to detect speakers in the audio data
-        diarization = pipeline({"waveform": this_waveform, "sample_rate": 16000})
+# kafka-python Consumer
+from kafka import KafkaConsumer
+import json
+import numpy as np
+from datetime import datetime
+import sys
+from scipy.signal import resample
 
-        # print the result
-        # for turn, _, speaker in diarization.itertracks(yield_label=True):
-        for turn, speaker in diarization.speaker_diarization:
-            start=f"{turn.start:.1f}"
-            end=f"{turn.end:.1f}"
-            print(f"start={turn.start:.1f}s stop={turn.end:.1f}s speaker_{speaker}")
-            speaker_list.append(speaker)
-        
-        return diarization
+public_ip_address = "<ip_address>"
 
-    # kafka-python Consumer
-    from kafka import KafkaConsumer
-    import json
-    import numpy as np
-    from datetime import datetime
-    import sys
-    from scipy.signal import resample
+# To consume latest messages and auto-commit offsets
+consumer = KafkaConsumer('dataengineering',
+                        #  group_id='python-consumer',
+                        bootstrap_servers=[public_ip_address+':29092',public_ip_address+':39092',public_ip_address+':49092'])
+                        #  consumer_timeout_ms=1000)
+                        #value_deserializer=lambda m: json.loads(m.decode('utf-8')))
 
-    public_ip_address = "<ip_address>"
+start_time = datetime.now()
 
-    # To consume latest messages and auto-commit offsets
-    consumer = KafkaConsumer('dataengineering',
-                            #  group_id='python-consumer',
-                            bootstrap_servers=[public_ip_address+':29092',public_ip_address+':39092',public_ip_address+':49092'])
-                            #  consumer_timeout_ms=1000)
-                            #value_deserializer=lambda m: json.loads(m.decode('utf-8')))
+compiled_message = []
 
-    start_time = datetime.now()
+try: 
+    for message in consumer:
+        begin_time = datetime.now()
+        # message value and key are raw bytes -- decode if necessary!
+        # e.g., for unicode: `message.value.decode('utf-8')`
+        print("%s %s:%d:%d: key=%s" % (datetime.now().strftime("%d/%m/%Y, %H:%M:%S"), message.topic, message.partition,
+                                            message.offset, message.key.decode('utf-8')))
 
-    compiled_message = []
+        if message.key.decode('utf-8')=="text":
+            print("message=%s" % message.value.decode('utf-8'))
 
-    try: 
-        for message in consumer:
-            begin_time = datetime.now()
-            # message value and key are raw bytes -- decode if necessary!
-            # e.g., for unicode: `message.value.decode('utf-8')`
-            print("%s %s:%d:%d: key=%s" % (datetime.now().strftime("%d/%m/%Y, %H:%M:%S"), message.topic, message.partition,
-                                                message.offset, message.key.decode('utf-8')))
+        if message.key.decode('utf-8').startswith("audio"):
+            audio_data = np.frombuffer(message.value, dtype=np.float32).flatten().astype(np.float32) 
+            #  # Convert multi-channel (Stereo) to Mono
+            # if CHANNELS > 1:
+            #     audio_data = audio_data.mean(axis=1)
+            # else:
+            #     audio_data = audio_data.flatten()
+            # # Ensure the data type is float32 (sounddevice usually returns float32 by default)
+            # audio_data = audio_data.astype(np.float32)
 
-            if message.key.decode('utf-8')=="text":
-                print("message=%s" % message.value.decode('utf-8'))
+            before_transcribe_time = datetime.now()
+            target_len = int(len(audio_data) * 16000 / RATE) # Calculate how many total samples the audio array needs to be when changed to 16,000Hz
+            audio_data = resample(audio_data, num=target_len) # Downsample the audio array to 16,000Hz (Whisper models are specifically trained on 16kHz audio)
+            audio_data = whisper.pad_or_trim(audio_data) # Enforce Whisper's strict input rule: pad short audio or cut long audio to exactly 30 seconds
+            text = whisper.transcribe(model, audio_data, fp16=False)["text"]
+            compiled_message.append(text)
+            speech_list.append(text)
+            print("transcribed.message=%s, transcribed.duration=%s" % (text, 
+                                                                    str(datetime.now()-before_transcribe_time)))
 
-            if message.key.decode('utf-8').startswith("audio"):
-                audio_data = np.frombuffer(message.value, dtype=np.float32).flatten().astype(np.float32) 
-                #  # Convert multi-channel (Stereo) to Mono
-                # if CHANNELS > 1:
-                #     audio_data = audio_data.mean(axis=1)
-                # else:
-                #     audio_data = audio_data.flatten()
-                # # Ensure the data type is float32 (sounddevice usually returns float32 by default)
-                # audio_data = audio_data.astype(np.float32)
+            # detect speakers
+            waveform_list.append(audio_data)
+            dia = detect_speakers(audio_data)
+            dia_list.append(dia)
+            print("Number of speakers detected:",len(list(dict.fromkeys(speaker_list))))
 
-                before_transcribe_time = datetime.now()
-                target_len = int(len(audio_data) * 16000 / RATE) # Calculate how many total samples the audio array needs to be when changed to 16,000Hz
-                audio_data = resample(audio_data, num=target_len) # Downsample the audio array to 16,000Hz (Whisper models are specifically trained on 16kHz audio)
-                audio_data = whisper.pad_or_trim(audio_data) # Enforce Whisper's strict input rule: pad short audio or cut long audio to exactly 30 seconds
-                text = whisper.transcribe(model, audio_data, fp16=False)["text"]
-                compiled_message.append(text)
-                speech_list.append(text)
-                print("transcribed.message=%s, transcribed.duration=%s" % (text, 
-                                                                        str(datetime.now()-before_transcribe_time)))
-
-                # detect speakers
-                waveform_list.append(audio_data)
-                dia = detect_speakers(audio_data)
-                dia_list.append(dia)
-                print("Number of speakers detected:",len(list(dict.fromkeys(speaker_list))))
-
-            if (datetime.now()-start_time).seconds > 60: # listen for 1 minute (60 seconds)
-                consumer.close()
-                print("**********")
-                print("* Ended listening for 1 min *")
-                print("compiled.message=%s" % (' '.join(compiled_message)))
-                break
-    except KeyboardInterrupt as kie:
-        consumer.close()
-        print("**********")
-        print("* Program terminated by user *")
-        print("compiled.message=%s" % (' '.join(compiled_message)))
-    ```
+        if (datetime.now()-start_time).seconds > 60: # listen for 1 minute (60 seconds)
+            consumer.close()
+            print("**********")
+            print("* Ended listening for 1 min *")
+            print("compiled.message=%s" % (' '.join(compiled_message)))
+            break
+except KeyboardInterrupt as kie:
+    consumer.close()
+    print("**********")
+    print("* Program terminated by user *")
+    print("compiled.message=%s" % (' '.join(compiled_message)))
+```
 
 ## 3.2 Plot speaker activity
 
@@ -506,7 +506,7 @@ plt.show()
 
 Display the transcription, plot the waveforms, and play the audio.
 
-## Using pyaudio
+### Using pyaudio
 
 ```python
 import matplotlib.pyplot as plt
@@ -537,7 +537,7 @@ for i, wave in enumerate(waveform_list):
     audio_player = Audio(wave_array.flatten(), rate=16000)
     display(audio_player)
 ```
-## Using sounddevice
+### Using sounddevice
 
 ```python
 import matplotlib.pyplot as plt

@@ -24,10 +24,14 @@ nav_external_links:
     url: lab10_2%20stream_data_pipeline_2_consumer.html#2-consume-audio-stream-and-transcribe
   - title: Consumer - 2.1 Initialise Consumer
     url: lab10_2%20stream_data_pipeline_2_consumer.html#21-initialize-the-consumer
-  - title: Consumer - 3. Consume audio stream, transcribe and identify number of speakers
-    url: lab10_2%20stream_data_pipeline_2_consumer.html#3-consume-audio-stream-transcribe-and-identify-number-of-speakers
+  - title: Consumer - 3. Transcribe audio and identify speakers
+    url: lab10_2%20stream_data_pipeline_2_consumer.html#3-transcribe-audio-and-identify-speakers
   - title: Consumer - 3.1 Detect speakers
     url: lab10_2%20stream_data_pipeline_2_consumer.html#31-detect-speakers
+  - title: Consumer - 3.2 Plot speaker activity
+    url: lab10_2%20stream_data_pipeline_2_consumer.html#32-plot-speaker-activity
+  - title: Consumer - 3.3 Review transcriptions and audio
+    url: lab10_2%20stream_data_pipeline_2_consumer.html#33-review-transcriptions-and-audio
   - title: Consumer - 4. Insert data into Elasticsearch NoSQL database and visualize in Kibana.
     url: lab10_2%20stream_data_pipeline_2_consumer.html#4-insert-data-into-elasticsearch-nosql-database-and-visualize-in-kibana
   - title: Submissions
