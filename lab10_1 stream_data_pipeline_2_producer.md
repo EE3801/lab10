@@ -209,149 +209,150 @@ Use your device to capture audio, record each sentence, and send the audio data 
 1. The code below captures audio from the default input device.
 2. It sends the raw audio data to the Kafka topic `dataengineering`.
 
-    ## Using PyAudio
+### Using PyAudio
 
-    ```python
-    # Single thread audio
+```python
+# Single thread audio
 
-    import pyaudio
-    from datetime import datetime
+import pyaudio
+from datetime import datetime
 
-    FORMAT = pyaudio.paInt16
-    CHUNK = 1024
-    RECORD_SECONDS = 10
-    # DEVICE_ID = 4
+FORMAT = pyaudio.paInt16
+CHUNK = 1024
+RECORD_SECONDS = 10
+# DEVICE_ID = 4
 
-    audio = pyaudio.PyAudio()
-    input_device = audio.get_default_input_device_info()
-    RATE = int(input_device['defaultSampleRate'])
-    CHANNELS = int(input_device['maxInputChannels'])
-    INDEX = int(input_device['index'])
+audio = pyaudio.PyAudio()
+input_device = audio.get_default_input_device_info()
+RATE = int(input_device['defaultSampleRate'])
+CHANNELS = int(input_device['maxInputChannels'])
+INDEX = int(input_device['index'])
 
-    start_time = datetime.now()
+start_time = datetime.now()
 
-    stream = audio.open(
-        format=FORMAT,
-        channels=CHANNELS,
-        rate=RATE,
-        input=True,
-        frames_per_buffer=CHUNK,
-        input_device_index=INDEX
-    )
+stream = audio.open(
+    format=FORMAT,
+    channels=CHANNELS,
+    rate=RATE,
+    input=True,
+    frames_per_buffer=CHUNK,
+    input_device_index=INDEX
+)
 
-    try:
+try:
+    while True:
+        before_time = datetime.now()
+        frames = []
+        for _ in range(int(RATE / CHUNK * RECORD_SECONDS)):
+            data = stream.read(CHUNK, exception_on_overflow=False)
+            frames.append(data)
+        raw_data = b''.join(frames)
+
+        # produce asynchronously with callbacks, data sent to topic dataengineering.
+        producer.send('dataengineering', raw_data, key=b'audio') \
+            .add_callback(on_send_success) \
+            .add_errback(on_send_error)
+
+        print("%s audio_duration (s): %s" % (
+            datetime.now().strftime("%d/%m/%Y, %H:%M:%S"),
+            (datetime.now() - before_time).seconds
+        ))
+
+        # block until all async messages are sent
+        producer.flush()
+
+        # exit program after 1 min
+        if (datetime.now() - start_time).seconds > 60: 
+            print("* Exit program after 1 min *")
+            break
+
+except KeyboardInterrupt:
+    print("* Program terminated by user *")
+except Exception as e:
+    print("Exception:", e)
+finally:
+    if stream is not None:
+        stream.stop_stream()
+        stream.close()
+        audio.terminate()
+```
+
+### Using sounddevice
+```python
+# Single thread audio
+
+import sounddevice as sd
+
+import wave
+import numpy as np
+from datetime import datetime
+import whisper
+import sys
+from scipy.signal import resample
+
+FORMAT = sd.default.dtype[0]
+RECORD_SECONDS = 5
+
+input_device = sd.query_devices(kind='input')
+RATE = int(input_device['default_samplerate'])
+CHUNK = int(RATE * RECORD_SECONDS)
+CHANNELS = int(input_device['max_input_channels'])
+INDEX = int(input_device['index'])
+
+start_time = datetime.now()
+message_counter = 0
+
+# Open a non-blocking stream that continuously captures audio
+stream = sd.InputStream(
+    samplerate = RATE,
+    channels = CHANNELS, 
+    dtype = FORMAT, 
+    device = INDEX,
+    # callback = audio_callback,
+    blocksize = CHUNK
+)
+
+try:
+    with stream: # Automatically starts and cleans up the stream
         while True:
             before_time = datetime.now()
-            frames = []
-            for _ in range(int(RATE / CHUNK * RECORD_SECONDS)):
-                data = stream.read(CHUNK, exception_on_overflow=False)
-                frames.append(data)
-            raw_data = b''.join(frames)
-
-            # produce asynchronously with callbacks, data sent to topic dataengineering.
-            producer.send('dataengineering', raw_data, key=b'audio') \
-                .add_callback(on_send_success) \
-                .add_errback(on_send_error)
-
-            print("%s audio_duration (s): %s" % (
-                datetime.now().strftime("%d/%m/%Y, %H:%M:%S"),
-                (datetime.now() - before_time).seconds
-            ))
-
-            # block until all async messages are sent
-            producer.flush()
-
-            # exit program after 1 min
-            if (datetime.now() - start_time).seconds > 60: 
-                print("* Exit program after 1 min *")
-                break
-
-    except KeyboardInterrupt:
-        print("* Program terminated by user *")
-    except Exception as e:
-        print("Exception:", e)
-    finally:
-        if stream is not None:
-            stream.stop_stream()
-            stream.close()
-            audio.terminate()
-    ```
-    ## Using sounddevice
-    ```python
-    # Single thread audio
-
-    import sounddevice as sd
-
-    import wave
-    import numpy as np
-    from datetime import datetime
-    import whisper
-    import sys
-    from scipy.signal import resample
-    
-    FORMAT = sd.default.dtype[0]
-    RECORD_SECONDS = 5
-
-    input_device = sd.query_devices(kind='input')
-    RATE = int(input_device['default_samplerate'])
-    CHUNK = int(RATE * RECORD_SECONDS)
-    CHANNELS = int(input_device['max_input_channels'])
-    INDEX = int(input_device['index'])
-
-    start_time = datetime.now()
-    message_counter = 0
-
-    # Open a non-blocking stream that continuously captures audio
-    stream = sd.InputStream(
-        samplerate = RATE,
-        channels = CHANNELS, 
-        dtype = FORMAT, 
-        device = INDEX,
-        # callback = audio_callback,
-        blocksize = CHUNK
-    )
-
-    try:
-        with stream: # Automatically starts and cleans up the stream
-            while True:
-                before_time = datetime.now()
-                
-                raw_data, overflowed = stream.read(CHUNK)
-                if overflowed:
-                    print("Warning: Audio buffer overflowed!")
-
-                # Convert multi-channel (Stereo) to Mono
-                if CHANNELS > 1:
-                    audio_data = raw_data.mean(axis=1)
-                else:
-                    audio_data = raw_data.flatten()
-
-                audio_bytes = audio_data.astype(np.float32, copy=False).tobytes()
-
-                unique_key = f"audio_{datetime.now().timestamp()}_{message_counter}".encode('utf-8')
-                message_counter += 1
-                
-                # produce asynchronously with callbacks, data sent to topic dataengineering.
-                producer.send('dataengineering', audio_bytes, key=unique_key)\
-                        .add_callback(on_send_success)\
-                        .add_errback(on_send_error)
-                print("%s audio_duration (s): %s" % (datetime.now().strftime("%d/%m/%Y, %H:%M:%S"), (datetime.now() - before_time).seconds))
-
-
-                if (datetime.now() - start_time).seconds > 60: #exit program after 1min
-                    print("* Exit program after 1min *")
-                    break
             
-    except KeyboardInterrupt as kie:
-        print("* Program terminated by user *")
-    except Exception as e:
-        print("Exception:", e)
-    finally:
-        producer.flush()
-        stream.stop()
-        stream.close()
+            raw_data, overflowed = stream.read(CHUNK)
+            if overflowed:
+                print("Warning: Audio buffer overflowed!")
 
-    ```
+            # Convert multi-channel (Stereo) to Mono
+            if CHANNELS > 1:
+                audio_data = raw_data.mean(axis=1)
+            else:
+                audio_data = raw_data.flatten()
+
+            audio_bytes = audio_data.astype(np.float32, copy=False).tobytes()
+
+            unique_key = f"audio_{datetime.now().timestamp()}_{message_counter}".encode('utf-8')
+            message_counter += 1
+            
+            # produce asynchronously with callbacks, data sent to topic dataengineering.
+            producer.send('dataengineering', audio_bytes, key=unique_key)\
+                    .add_callback(on_send_success)\
+                    .add_errback(on_send_error)
+            print("%s audio_duration (s): %s" % (datetime.now().strftime("%d/%m/%Y, %H:%M:%S"), (datetime.now() - before_time).seconds))
+
+
+            if (datetime.now() - start_time).seconds > 60: #exit program after 1min
+                print("* Exit program after 1min *")
+                break
+        
+except KeyboardInterrupt as kie:
+    print("* Program terminated by user *")
+except Exception as e:
+    print("Exception:", e)
+finally:
+    producer.flush()
+    stream.stop()
+    stream.close()
+
+```
 
 
 3. Open the instructions in [Lab 10 Stream Data Pipeline II Consumer](./lab10_2%20stream_data_pipeline_2_consumer.md).
